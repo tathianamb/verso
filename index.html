@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lavoura — editor de tese LaTeX</title>
+<meta name="theme-color" content="#0f2e2a" />
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkxhdm91cmEgLeKAlCBlZGl0b3IgZGUgdGVzZSBMYVRlWCIsCiAgInNob3J0X25hbWUiOiAiTGF2b3VyYSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGYyZTJhIiwKICAidGhlbWVfY29sb3IiOiAiIzBmMmUyYSIKfQ==" />
+<style>
+  /* ---------- design tokens ---------- */
+  :root{
+    --ink:#11201d;          /* near-black green-tinted text */
+    --paper:#f3efe4;        /* warm academic paper */
+    --paper-2:#e9e3d3;      /* slightly darker panel */
+    --line:#cdc4ad;         /* hairline */
+    --tex:#0f6b5c;          /* TeX teal accent */
+    --tex-deep:#0f2e2a;     /* deep teal for chrome */
+    --amber:#b5641e;        /* warning/secondary accent */
+    --muted:#5d6660;
+    --sel:#cfe4dd;
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--tex-deep);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer}
+  ::selection{background:var(--sel)}
+
+  /* ---------- app shell ---------- */
+  .app{display:grid;grid-template-rows:auto 1fr;height:100%}
+
+  header.topbar{
+    display:flex;align-items:center;gap:14px;
+    padding:8px 14px;
+    background:var(--tex-deep);
+    color:var(--paper);
+    border-bottom:1px solid #06403a;
+  }
+  .brand{display:flex;align-items:baseline;gap:9px;user-select:none}
+  .brand .mark{
+    font-family:var(--serif);font-style:italic;font-size:20px;letter-spacing:.3px;
+  }
+  .brand .mark b{color:#7fd8c6;font-style:normal;font-weight:700}
+  .brand .sub{font-size:11px;color:#8fb3ab;letter-spacing:.16em;text-transform:uppercase}
+  .topbar .spacer{flex:1}
+  .tbtn{
+    background:#11423b;color:var(--paper);border:1px solid #1c5a50;
+    padding:7px 13px;border-radius:7px;font-size:13px;font-weight:600;
+    display:inline-flex;align-items:center;gap:7px;transition:.15s;
+  }
+  .tbtn:hover{background:#185d52;border-color:#2a7568}
+  .tbtn.primary{background:var(--tex);border-color:#13a48c;color:#fff}
+  .tbtn.primary:hover{background:#13a48c}
+  .tbtn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---------- body columns ---------- */
+  .cols{display:grid;grid-template-columns:240px 1fr 1fr;min-height:0;background:var(--paper)}
+  @media (max-width:880px){
+    .cols{grid-template-columns:1fr}
+    .pane.files{display:none}
+    .pane.preview{display:none}
+    .cols.show-files .pane.files{display:flex;position:absolute;inset:49px 0 0 0;z-index:20;width:260px}
+    .cols.show-preview .pane.editor{display:none}
+    .cols.show-preview .pane.preview{display:flex}
+  }
+  .pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .pane.files{background:var(--paper-2);border-right:1px solid var(--line)}
+  .pane.editor{border-right:1px solid var(--line)}
+
+  /* ---------- file tree ---------- */
+  .files h2,.preview h2{
+    margin:0;padding:11px 14px 9px;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);font-weight:700;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;
+  }
+  .tree{overflow:auto;flex:1;padding:6px 0}
+  .grp{padding:9px 14px 3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9a9176}
+  .fitem{
+    display:flex;align-items:center;gap:8px;padding:6px 14px 6px 18px;
+    font-size:13px;color:var(--ink);border-left:3px solid transparent;
+  }
+  .fitem:hover{background:#ded7c4}
+  .fitem.active{background:#fff;border-left-color:var(--tex);font-weight:600}
+  .fitem .ic{font-size:11px;color:var(--tex);width:14px;text-align:center}
+  .fitem.missing{color:var(--amber)}
+  .fitem.missing .ic{color:var(--amber)}
+  .fitem small{margin-left:auto;color:#a59c82;font-size:10px}
+
+  /* ---------- editor ---------- */
+  .ed-head{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;
+    border-bottom:1px solid var(--line);background:var(--paper);
+  }
+  .crumb{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .crumb b{color:var(--ink)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);opacity:0}
+  .dot.on{opacity:1}
+  .editor-wrap{flex:1;min-height:0;overflow:hidden;background:#fbfaf5}
+  .CodeMirror{height:100%!important;font-family:var(--mono);font-size:13.5px;line-height:1.65}
+  .CodeMirror-gutters{background:#f1ece0;border-right:1px solid var(--line)}
+  .cm-s-tese.CodeMirror{background:#fbfaf5;color:#26302c}
+  .cm-s-tese .CodeMirror-cursor{border-left:2px solid var(--tex)}
+  .cm-s-tese .CodeMirror-selected{background:var(--sel)!important}
+  .cm-s-tese .CodeMirror-linenumber{color:#b3a988}
+  .cm-s-tese .cm-tex-cmd{color:var(--tex);font-weight:600}
+  .cm-s-tese .cm-tex-brace{color:#9a7b2e}
+  .cm-s-tese .cm-tex-math{color:#7a3ea8}
+  .cm-s-tese .cm-tex-comment{color:#9c947f;font-style:italic}
+  .cm-s-tese .cm-tex-env{color:#b5641e;font-weight:600}
+
+  /* ---------- preview ---------- */
+  .pane.preview{background:#dad3c2}
+  .preview .ph{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;color:var(--muted);padding:30px;gap:14px;
+  }
+  .preview .ph .big{font-family:var(--serif);font-size:21px;color:var(--ink)}
+  .preview .ph code{font-family:var(--mono);font-size:12px;background:#cfc8b5;padding:2px 6px;border-radius:4px}
+  .pdfframe{flex:1;border:0;width:100%;background:#cfc8b5}
+  #log{
+    font-family:var(--mono);font-size:11.5px;line-height:1.5;color:#2c3531;
+    background:#efe9db;border-top:1px solid var(--line);
+    padding:10px 14px;max-height:34%;overflow:auto;white-space:pre-wrap;display:none;
+  }
+  #log.show{display:block}
+  #log .err{color:#a3331b}
+  #log .ok{color:#1d6b4f}
+  #log .warn{color:#9a6411}
+
+  /* ---------- mobile tabbar ---------- */
+  .tabbar{display:none}
+  @media (max-width:880px){
+    .tabbar{
+      display:flex;position:fixed;bottom:0;left:0;right:0;z-index:30;
+      background:var(--tex-deep);border-top:1px solid #06403a;
+    }
+    .tabbar button{
+      flex:1;background:none;border:0;color:#8fb3ab;padding:10px;font-size:11px;
+      display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:600;
+    }
+    .tabbar button.active{color:#7fd8c6}
+    .tabbar button .ti{font-size:16px}
+    .editor-wrap{padding-bottom:54px}
+    .tree{padding-bottom:54px}
+  }
+
+  .toast{
+    position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:9px;
+    font-size:13px;opacity:0;transition:.25s;z-index:50;pointer-events:none;
+    box-shadow:0 8px 26px rgba(0,0,0,.3);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (max-width:880px){.toast{bottom:66px}}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark"><b>L</b>avoura</span>
+      <span class="sub">tese · UTFPR-PG</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="tbtn" id="btnImport" title="Abrir um .zip da tese">Abrir .zip</button>
+    <button class="tbtn" id="btnExport" title="Baixar projeto .zip">Exportar</button>
+    <button class="tbtn" id="btnRepo" title="Conectar repositório do GitHub">Repo</button>
+    <button class="tbtn" id="btnSave" title="Salvar no dispositivo (Ctrl+S)">Salvar</button>
+    <button class="tbtn primary" id="btnPublish" title="Publicar e compilar (Ctrl+Enter)">Publicar &amp; compilar</button>
+    <input type="file" id="zipInput" accept=".zip" style="display:none">
+  </header>
+
+  <div class="cols" id="cols">
+    <!-- file tree -->
+    <aside class="pane files">
+      <h2>Arquivos da tese</h2>
+      <div class="tree" id="tree"></div>
+    </aside>
+
+    <!-- editor -->
+    <section class="pane editor">
+      <div class="ed-head">
+        <span class="dot" id="dirtyDot"></span>
+        <span class="crumb" id="crumb">—</span>
+      </div>
+      <div class="editor-wrap"><textarea id="code"></textarea></div>
+    </section>
+
+    <!-- preview -->
+    <section class="pane preview">
+      <h2>Saída — PDF</h2>
+      <div class="ph" id="previewPh">
+        <div class="big">Escreva. Publique. Veja.</div>
+        <div>Edite à esquerda e clique <code>Publicar &amp; compilar</code>.<br>
+        O app commita no seu GitHub, o Actions compila (abnTeX2, biber, EPS)<br>
+        e o PDF aparece aqui — sem zip, sem upload manual.</div>
+        <div>Primeira vez? Clique em <code>Repo</code> pra conectar seu repositório.</div>
+      </div>
+      <iframe class="pdfframe" id="pdfframe" style="display:none"></iframe>
+      <div id="log"></div>
+    </section>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <button data-tab="files"><span class="ti">☰</span>Arquivos</button>
+  <button data-tab="editor" class="active"><span class="ti">✎</span>Editor</button>
+  <button data-tab="preview"><span class="ti">▤</span>PDF</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
+<script>
+/* ============================================================
+   Lavoura — editor de tese LaTeX (PWA)
+   - Edição offline com persistência em IndexedDB
+   - Árvore de arquivos baseada na estrutura real da tese
+   - Gancho de compilação (endpoint remoto OU instruções de CI)
+   ============================================================ */
+
+/* ---------- 1. estrutura inicial (placeholder até abrir o .zip) ---------- */
+/* O app foi feito pra ABRIR O .ZIP REAL da sua tese (botão "Abrir .zip").
+   Este seed mínimo só existe pra primeira visita não ficar vazia. */
+const SEED = {
+  "LEIA-ME.txt": `Bem-vindo ao Lavoura — editor da sua tese.
+
+PRIMEIROS PASSOS
+1. "Abrir .zip": selecione tese-latex-master.zip. O app
+   carrega TODOS os arquivos reais (main.tex, capítulos,
+   refs.bib, .cls, imagens e selos EPS), com as pastas.
+2. "Repo": conecte seu repositório do GitHub (usuário,
+   nome do repo e um token de acesso). Fica só aqui no
+   dispositivo.
+3. Escreva à vontade. "Publicar & compilar" commita as
+   mudanças, o GitHub Actions compila e o PDF aparece no
+   preview — sem zip, sem upload manual.
+
+Tudo salvo no dispositivo (IndexedDB) e offline pra editar.
+
+Lembre de criar o chapters/diag-causal.tex (o main.tex faz
+\\input dele). O app marca arquivos ausentes em âmbar.`,
+};
+
+/* arquivos que o main.tex referencia via \\input mas podem faltar.
+   Recalculado dinamicamente ao abrir o zip. */
+let REFERENCED = ["chapters/diag-causal.tex"];
+
+/* extensões tratadas como texto editável; o resto vira binário (base64) */
+const TEXT_EXT=/\.(tex|bib|cls|sty|txt|md|cfg|lco|bst|ltx|gitignore)$/i;
+const isText=p=>TEXT_EXT.test(p)||(/(^|\/)\.[^/]+$/.test(p)&&!/\.(jpg|jpeg|png|gif|pdf|eps|ttf|otf)$/i.test(p));
+
+/* ---------- 2. IndexedDB mínimo ---------- */
+const DB="lavoura",STORE="files";
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);
+  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function dbGet(k){const d=await idb();return new Promise((res,rej)=>{
+  const t=d.transaction(STORE).objectStore(STORE).get(k);
+  t.onsuccess=()=>res(t.result);t.onerror=()=>rej(t.error);});}
+async function dbSet(k,v){const d=await idb();return new Promise((res,rej)=>{
+  const t=d.transaction(STORE,"readwrite").objectStore(STORE).put(v,k);
+  t.onsuccess=()=>res();t.onerror=()=>rej(t.error);});}
+async function dbAll(){const d=await idb();return new Promise((res,rej)=>{
+  const out={},s=d.transaction(STORE).objectStore(STORE),c=s.openCursor();
+  c.onsuccess=e=>{const cur=e.target.result;if(cur){out[cur.key]=cur.value;cur.continue();}else res(out);};
+  c.onerror=()=>rej(c.error);});}
+
+/* ---------- 3. estado ---------- */
+let files={};          // path -> texto (arquivos editáveis)
+let binaries={};       // path -> base64 (imagens, eps, etc.)
+let current=null;      // active path
+let dirty=false;
+const $=s=>document.querySelector(s);
+
+/* ---------- 4. CodeMirror ---------- */
+const cm=CodeMirror.fromTextArea($("#code"),{
+  mode:"stex",theme:"tese",lineNumbers:true,lineWrapping:true,
+  autofocus:true,viewportMargin:Infinity,
+});
+cm.on("change",()=>{if(current){files[current]=cm.getValue();setDirty(true);}});
+
+function setDirty(v){dirty=v;$("#dirtyDot").classList.toggle("on",v);}
+
+/* ---------- 5. árvore de arquivos ---------- */
+function basename(p){return p.split("/").pop();}
+function buildTree(){
+  const tree=$("#tree");tree.innerHTML="";
+  const root=[],chap=[];
+  Object.keys(files).forEach(p=>{(p.includes("/")?chap:root).push(p);});
+  // also surface referenced-but-missing
+  REFERENCED.forEach(p=>{if(!(p in files))chap.push(p);});
+
+  const addItem=(p)=>{
+    const missing=!(p in files);
+    const el=document.createElement("div");
+    el.className="fitem"+(p===current?" active":"")+(missing?" missing":"");
+    const ext=p.endsWith(".bib")?"❡":p.endsWith(".tex")?"§":"·";
+    el.innerHTML=`<span class="ic">${missing?"!":ext}</span><span>${basename(p)}</span>`+
+      (missing?`<small>ausente</small>`:``);
+    el.onclick=()=>{ if(missing){ if(confirm(`Criar ${p}? O main.tex faz \\input dele, mas o arquivo não existe.`)){ files[p]="% "+p+"\n\\chapter{Novo capítulo}\n"; openFile(p); buildTree(); setDirty(true);} return;} openFile(p); };
+    tree.appendChild(el);
+  };
+  if(root.length){const g=document.createElement("div");g.className="grp";g.textContent="raiz";tree.appendChild(g);
+    root.sort().forEach(addItem);}
+  if(chap.length){const g=document.createElement("div");g.className="grp";g.textContent="chapters/";tree.appendChild(g);
+    chap.sort().forEach(addItem);}
+}
+function openFile(p){
+  if(!(p in files))return;
+  current=p;cm.setValue(files[p]);cm.clearHistory();
+  $("#crumb").innerHTML=p.includes("/")
+    ? p.split("/")[0]+"/<b>"+basename(p)+"</b>" : "<b>"+p+"</b>";
+  buildTree();
+  if(window.innerWidth<=880)switchTab("editor");
+}
+
+/* ---------- 6. persistência ---------- */
+/* chaves de texto = path; chaves binárias = "bin::"+path */
+async function persistEverything(){
+  const d=await idb();
+  await new Promise((res,rej)=>{
+    const t=d.transaction(STORE,"readwrite"),s=t.objectStore(STORE);
+    s.clear();
+    for(const[k,v]of Object.entries(files))s.put(v,k);
+    for(const[k,v]of Object.entries(binaries))s.put(v,"bin::"+k);
+    if(GH.user)s.put(GH.user,"__gh_user");
+    if(GH.repo)s.put(GH.repo,"__gh_repo");
+    if(GH.token)s.put(GH.token,"__gh_token");
+    if(GH.branch)s.put(GH.branch,"__gh_branch");
+    t.oncomplete=()=>res();t.onerror=()=>rej(t.error);
+  });
+}
+async function saveAll(){
+  await persistEverything();
+  setDirty(false);toast("Salvo no dispositivo");
+}
+async function load(){
+  const stored=await dbAll();
+  files={};binaries={};
+  // carrega config do repo, se houver
+  GH={user:stored["__gh_user"]||"",repo:stored["__gh_repo"]||"",
+      token:stored["__gh_token"]||"",branch:stored["__gh_branch"]||"main"};
+  delete stored["__gh_user"];delete stored["__gh_repo"];
+  delete stored["__gh_token"];delete stored["__gh_branch"];
+  if(Object.keys(stored).length){
+    for(const[k,v]of Object.entries(stored)){
+      if(k.startsWith("bin::"))binaries[k.slice(5)]=v;else files[k]=v;
+    }
+  }else{
+    files={...SEED};await persistEverything();
+  }
+  rescanReferenced();buildTree();
+  openFile(files["main.tex"]?"main.tex":Object.keys(files)[0]);
+}
+
+/* ---------- 7. publicar no GitHub: commit → Actions → PDF ---------- */
+/* Um clique: commita os arquivos alterados via API do GitHub, monitora
+   o workflow do Actions e, ao concluir, carrega o PDF da Release no
+   preview. Token e config ficam só no dispositivo (IndexedDB). */
+const GH_TAG="ultimo-pdf";        // tag da Release publicada pelo tese.yml
+const GH_ASSET="main.pdf";        // nome do PDF publicado
+const GH_BRANCH="main";           // branch alvo dos commits
+const GH_API="https://api.github.com";
+let GH={user:"",repo:"",token:"",branch:GH_BRANCH};
+let lastPushedSha={};             // path -> sha do último conteúdo enviado
+
+function setGhCfg(o){GH={...GH,...o};
+  dbSet("__gh_user",GH.user);dbSet("__gh_repo",GH.repo);
+  dbSet("__gh_token",GH.token);dbSet("__gh_branch",GH.branch);}
+
+function logLine(msg,cls){const l=$("#log");l.classList.add("show");
+  const s=document.createElement("div");if(cls)s.className=cls;s.textContent=msg;l.appendChild(s);l.scrollTop=l.scrollHeight;}
+function clearLog(){$("#log").innerHTML="";$("#log").classList.remove("show");}
+
+/* checagem local: arquivos referenciados pelo main.tex que faltam */
+function preflight(){
+  const missing=REFERENCED.filter(p=>!(p in files));
+  if(missing.length){
+    logLine("⚠ Resolva os \\input ausentes antes de publicar:","warn");
+    missing.forEach(m=>logLine("   main.tex faz \\input{"+m.replace(/\.tex$/,"")+"} mas "+m+" não existe.","warn"));
+    logLine("");
+  }
+  return missing.length===0;
+}
+
+/* helper de API com auth */
+async function gh(path,opts={}){
+  const r=await fetch(GH_API+path,{...opts,headers:{
+    "Authorization":"Bearer "+GH.token,
+    "Accept":"application/vnd.github+json",
+    "X-GitHub-Api-Version":"2022-11-28",
+    ...(opts.headers||{})}});
+  return r;
+}
+
+/* base64 UTF-8 seguro (para conteúdo de texto com acentos) */
+function b64encodeText(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+/* cria um blob e devolve seu sha */
+async function makeBlob(contentB64){
+  const r=await gh(`/repos/${GH.user}/${GH.repo}/git/blobs`,
+    {method:"POST",body:JSON.stringify({content:contentB64,encoding:"base64"})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error("blob: "+(e.message||r.status));}
+  return (await r.json()).sha;
+}
+
+/* commita TODOS os arquivos de uma vez (1 árvore, 1 commit, 1 run) */
+async function commitAll(onProgress){
+  const base=`/repos/${GH.user}/${GH.repo}/git`;
+  // 1) ref atual do branch
+  let parentSha=null,baseTree=null;
+  const refR=await gh(`${base}/ref/heads/${GH.branch}`);
+  if(refR.ok){
+    parentSha=(await refR.json()).object.sha;
+    const commitR=await gh(`${base}/commits/${parentSha}`);
+    if(commitR.ok)baseTree=(await commitR.json()).tree.sha;
+  }else if(refR.status!==404){
+    throw new Error("ref: HTTP "+refR.status);
+  }
+  // 2) blobs (texto + binário) e montagem da árvore
+  const entries=[];
+  const all=[...Object.keys(files).map(p=>[p,b64encodeText(files[p])]),
+             ...Object.keys(binaries).map(p=>[p,binaries[p]])];
+  let done=0;
+  for(const [path,b64] of all){
+    const sha=await makeBlob(b64);
+    entries.push({path,mode:"100644",type:"blob",sha});
+    done++;onProgress&&onProgress(done,all.length,path);
+  }
+  // 3) árvore
+  const treeBody={tree:entries};if(baseTree)treeBody.base_tree=baseTree;
+  const treeR=await gh(`${base}/trees`,{method:"POST",body:JSON.stringify(treeBody)});
+  if(!treeR.ok)throw new Error("tree: HTTP "+treeR.status);
+  const treeSha=(await treeR.json()).sha;
+  // 4) commit
+  const msg="Lavoura: atualiza a tese ("+new Date().toLocaleString("pt-BR")+")";
+  const commitBody={message:msg,tree:treeSha};
+  if(parentSha)commitBody.parents=[parentSha];
+  const commitR=await gh(`${base}/commits`,{method:"POST",body:JSON.stringify(commitBody)});
+  if(!commitR.ok)throw new Error("commit: HTTP "+commitR.status);
+  const newCommit=(await commitR.json()).sha;
+  // 5) atualiza (ou cria) o ref do branch
+  let updR=await gh(`${base}/refs/heads/${GH.branch}`,
+    {method:"PATCH",body:JSON.stringify({sha:newCommit,force:false})});
+  if(updR.status===404||updR.status===422){
+    // branch ainda não existe: cria
+    updR=await gh(`${base}/refs`,
+      {method:"POST",body:JSON.stringify({ref:`refs/heads/${GH.branch}`,sha:newCommit})});
+  }
+  if(!updR.ok){const e=await updR.json().catch(()=>({}));throw new Error("push: "+(e.message||updR.status));}
+  return newCommit;
+}
+
+/* fluxo principal do botão Publicar & compilar */
+async function publish(){
+  clearLog();
+  if(!GH.user||!GH.repo||!GH.token){
+    $("#previewPh").style.display="flex";$("#pdfframe").style.display="none";
+    logLine("Conecte seu repositório do GitHub primeiro.","err");
+    logLine("");
+    logLine("Clique em \"Repo\" no topo e informe:","ok");
+    logLine("  • usuário/organização e nome do repositório;");
+    logLine("  • um token de acesso (fine-grained, escopo Contents + Actions).");
+    logLine("");
+    logLine("O token fica só neste dispositivo. Use um token restrito ao repo da tese.","warn");
+    toast("Conecte o repo em \"Repo\"");
+    return;
+  }
+  if(!preflight()){toast("Há \\input ausentes");return;}
+
+  $("#btnPublish").disabled=true;
+  try{
+    const total=Object.keys(files).length+Object.keys(binaries).length;
+    logLine("Publicando "+total+" arquivos em "+GH.user+"/"+GH.repo+" ("+GH.branch+")…");
+    const commitSha=await commitAll((d,t,p)=>{
+      if(d===1||d===t||d%5===0)logLine("  enviando… ("+d+"/"+t+")");
+    });
+    logLine("Commit "+commitSha.slice(0,7)+" publicado. Disparando compilação…","ok");
+    await monitorRun(commitSha);
+  }catch(e){
+    logLine("Falha ao publicar: "+e.message,"err");
+    if(/401|403|Bad credentials|Resource not accessible/i.test(e.message))
+      logLine("Verifique o token em \"Repo\" (precisa de Contents: read/write e Actions: read).","warn");
+    toast("Erro ao publicar");
+  }finally{$("#btnPublish").disabled=false;}
+}
+
+/* aguarda o run do Actions referente ao nosso commit terminar */
+async function monitorRun(commitSha){
+  logLine("Aguardando o GitHub Actions iniciar…");
+  let runId=null,runNum=null,tries=0;
+  while(!runId&&tries<20){
+    await sleep(3000);tries++;
+    const r=await gh(`/repos/${GH.user}/${GH.repo}/actions/runs?branch=${GH.branch}&per_page=10`);
+    if(r.ok){const j=await r.json();
+      // procura o run cujo head_sha bate com o commit que acabamos de criar
+      const run=(j.workflow_runs||[]).find(w=>!commitSha||w.head_sha===commitSha)
+                || (j.workflow_runs||[])[0];
+      if(run&&(!commitSha||run.head_sha===commitSha)){
+        runId=run.id;runNum=run.run_number;
+        logLine("Run #"+runNum+" detectado…");
+      }
+    }
+  }
+  if(!runId){logLine("Não detectei o run. Veja em github.com/"+GH.user+"/"+GH.repo+"/actions","warn");
+    toast("Não achei o run do Actions");return;}
+
+  let status="queued",conclusion=null;
+  while(status!=="completed"){
+    await sleep(5000);
+    const r=await gh(`/repos/${GH.user}/${GH.repo}/actions/runs/${runId}`);
+    if(!r.ok){logLine("Erro ao consultar o run: HTTP "+r.status,"err");break;}
+    const j=await r.json();status=j.status;conclusion=j.conclusion;
+    logLine("  status: "+status+(conclusion?(" → "+conclusion):""));
+  }
+
+  if(conclusion!=="success"){
+    logLine("A compilação falhou ("+conclusion+").","err");
+    logLine("Abra o log em github.com/"+GH.user+"/"+GH.repo+"/actions/runs/"+runId,"warn");
+    notify("Compilação falhou","O Actions terminou com: "+conclusion);
+    toast("Compilação falhou");
+    return;
+  }
+
+  logLine("Compilação concluída. Buscando o PDF…","ok");
+  await sleep(2500);
+  const pdfUrl=`https://github.com/${GH.user}/${GH.repo}/releases/download/${GH_TAG}/${GH_ASSET}?t=${Date.now()}`;
+  try{
+    const r=await fetch(pdfUrl,{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const blob=await r.blob();const url=URL.createObjectURL(blob);
+    $("#previewPh").style.display="none";const f=$("#pdfframe");f.style.display="block";f.src=url;
+    logLine("PDF pronto e carregado no preview. ✓","ok");
+    notify("Tese compilada ✓","Seu PDF está pronto e já apareceu no preview.");
+    toast("PDF pronto");
+    if(window.innerWidth<=880)switchTab("preview");
+  }catch(e){
+    logLine("Compilou, mas não baixei o PDF: "+e.message,"warn");
+    logLine("Confira a Release \""+GH_TAG+"\" no repositório.","warn");
+    notify("Tese compilada","O PDF foi gerado; abra a Release pra ver.");
+  }
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* notificação do navegador (avisa quando o PDF fica pronto) */
+function notify(title,body){
+  if(!("Notification"in window))return;
+  if(Notification.permission==="granted")new Notification(title,{body});
+  else if(Notification.permission!=="denied")
+    Notification.requestPermission().then(p=>{if(p==="granted")new Notification(title,{body});});
+}
+
+/* diálogo de conexão do repo (usuário, repo, token, branch) */
+function configRepo(){
+  const u=prompt("Usuário ou organização do GitHub:",GH.user);
+  if(u===null)return;
+  const r=prompt("Nome do repositório da tese:",GH.repo);
+  if(r===null)return;
+  const b=prompt("Branch (normalmente main):",GH.branch||"main");
+  if(b===null)return;
+  const t=prompt("Token de acesso (fine-grained: Contents read/write + Actions read).\nDeixe em branco pra manter o atual:","");
+  const next={user:u.trim(),repo:r.trim(),branch:(b.trim()||"main")};
+  if(t&&t.trim())next.token=t.trim();
+  setGhCfg(next);
+  toast("Repositório conectado: "+next.user+"/"+next.repo);
+}
+
+
+/* ---------- 7b. varredura de \input/\include ---------- */
+/* lê o main.tex e descobre quais capítulos ele referencia,
+   marcando como "ausente" os que não existem no projeto. */
+function rescanReferenced(){
+  const main=files["main.tex"];if(!main)return;
+  const refs=new Set();
+  const re=/\\(?:input|include)\{([^}]+)\}/g;let m;
+  while((m=re.exec(main))){
+    let p=m[1].trim();
+    if(!/\.\w+$/.test(p))p+=".tex";          // \input sem extensão -> .tex
+    refs.add(p);
+  }
+  REFERENCED=[...refs];
+  buildTree();
+}
+
+/* ---------- 7c. importar .zip ---------- */
+async function importZip(file){
+  if(!window.JSZip){toast("Biblioteca de zip não carregou");return;}
+  toast("Lendo "+file.name+"…");
+  const zip=await JSZip.loadAsync(file);
+  const newText={},newBin={};
+  // detecta prefixo de pasta comum (ex.: "tese-latex-master/")
+  const paths=Object.keys(zip.files).filter(p=>!zip.files[p].dir);
+  let prefix="";
+  const top=paths[0]?.split("/")[0];
+  if(top&&paths.every(p=>p.startsWith(top+"/")))prefix=top+"/";
+  for(const raw of paths){
+    const entry=zip.files[raw];
+    const path=prefix?raw.slice(prefix.length):raw;
+    if(!path)continue;
+    if(isText(path)){
+      newText[path]=await entry.async("string");
+    }else{
+      newBin[path]=await entry.async("base64");
+    }
+  }
+  if(!Object.keys(newText).length){toast("Nenhum .tex encontrado no zip");return;}
+  files=newText;binaries=newBin;
+  await persistEverything();
+  rescanReferenced();
+  // abre o main.tex se existir, senão o primeiro .tex
+  const first=files["main.tex"]?"main.tex":Object.keys(files).find(p=>p.endsWith(".tex"))||Object.keys(files)[0];
+  openFile(first);
+  setDirty(false);
+  toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos carregados");
+}
+
+/* ---------- 7d. exportar .zip ---------- */
+async function exportZip(){
+  if(!window.JSZip){toast("Biblioteca de zip não carregou");return;}
+  const zip=new JSZip();
+  for(const[p,v]of Object.entries(files))zip.file(p,v);
+  for(const[p,v]of Object.entries(binaries))zip.file(p,v,{base64:true});
+  const blob=await zip.generateAsync({type:"blob"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="tese-latex.zip";a.click();
+  toast("Projeto exportado (.zip)");
+}
+
+
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");
+  clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),1900);}
+function switchTab(name){
+  document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  const c=$("#cols");c.classList.toggle("show-files",name==="files");
+  c.classList.toggle("show-preview",name==="preview");
+}
+document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+$("#btnSave").onclick=saveAll;
+$("#btnPublish").onclick=publish;
+$("#btnExport").onclick=exportZip;
+$("#btnImport").onclick=()=>$("#zipInput").click();
+$("#btnRepo").onclick=configRepo;
+$("#zipInput").onchange=e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>{console.error(err);toast("Erro ao ler zip");});e.target.value="";};
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();saveAll();}
+  if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();publish();}
+});
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+
+/* ---------- 10. service worker (offline shell) ---------- */
+if("serviceWorker"in navigator){
+  const sw=`self.addEventListener("install",e=>self.skipWaiting());
+  self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));
+  self.addEventListener("fetch",e=>{
+    e.respondWith(caches.open("lavoura-v1").then(async c=>{
+      const hit=await c.match(e.request);
+      try{const net=await fetch(e.request);c.put(e.request,net.clone());return net;}
+      catch(_){return hit||Response.error();}
+    }));
+  });`;
+  const url=URL.createObjectURL(new Blob([sw],{type:"text/javascript"}));
+  navigator.serviceWorker.register(url).catch(()=>{});
+}
+
+load();
+</script>
+</body>
+</html>

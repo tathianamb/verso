@@ -753,49 +753,28 @@ async function loadLastPdf(){
   }
 }
 
-async function fetchReleasePdf(){
-  // 1. Busca os metadados da release privada para achar o ID do asset do PDF
-  const relR = await gh(`/repos/${GH.user}/${GH.repo}/releases/tags/${GH_TAG}`);
-  if(!relR.ok) throw new Error("Release \"" + GH_TAG + "\" não encontrada (HTTP " + relR.status + ")");
-  const rel = await relR.json();
+async function fetchReleasePdf() {
+  if (!GH.user || !GH.repo) throw new Error("Configurações do GitHub ausentes");
+
+  const targetPdf = pdfName();
   
-  const wanted = pdfName();
-  const asset = (rel.assets || []).find(a => a.name === wanted)
-             || (rel.assets || []).find(a => a.name.endsWith(".pdf"))
-             || (rel.assets || [])[0];
-  if(!asset) throw new Error("A Release não tem nenhum PDF anexado ainda.");
+  // URL da API para pegar o arquivo cru (raw) diretamente da branch gh-pages
+  const branchUrl = `${GH_API}/repos/${GH.user}/${GH.repo}/contents/${targetPdf}?ref=gh-pages`;
 
-  const assetUrl = GH_API + `/repos/${GH.user}/${GH.repo}/releases/assets/${asset.id}`;
-
-  // 2. PRIMEIRA ETAPA DO TRUQUE DO CORS:
-  // Fazemos a requisição com o Token do usuário, mas proibimos o navegador de seguir o redirect automático
-  const r1 = await fetch(assetUrl, {
+  // Baixa os metadados do arquivo usando o Token do usuário para dar acesso se for privado
+  const r1 = await fetch(branchUrl, {
     method: "GET",
-    redirect: "manual", 
     headers: {
       "Authorization": "Bearer " + GH.token,
-      "Accept": "application/octet-stream"
+      "Accept": "application/vnd.github.v3.raw" // Este header força a API a cuspir os bytes diretos do PDF
     }
   });
 
-  // Captura a URL final secreta gerada pelo GitHub (objects.githubusercontent.com)
-  const redirectUrl = r1.headers.get("Location");
-  
-  if (!redirectUrl) {
-    // Caso o navegador consiga ler direto sem redirect (raro, mas acontece)
-    if (r1.ok) return r1.blob();
-    throw new Error(`Erro ao obter link de download do PDF (HTTP ${r1.status})`);
+  if (!r1.ok) {
+    throw new Error(`PDF não encontrado na branch gh-pages (HTTP ${r1.status}). Verifique se a Action terminou.`);
   }
 
-  // 3. SEGUNDA ETAPA DO TRUQUE DO CORS:
-  // Fazemos um fetch na URL final pré-assinada SEM o header "Authorization"
-  // O servidor final aceita o download por causa da assinatura na URL e o CORS passa liso!
-  const r2 = await fetch(redirectUrl, {
-    method: "GET"
-  });
-
-  if (r2.ok) return r2.blob();
-  throw new Error(`Erro ao baixar o arquivo final do PDF (HTTP ${r2.status})`);
+  return r1.blob();
 }
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));

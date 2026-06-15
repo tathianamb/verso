@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Lavoura — editor de tese LaTeX</title>
+<title>Verso — editor de tese LaTeX</title>
 <meta name="theme-color" content="#0f2e2a" />
-<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkxhdm91cmEgLeKAlCBlZGl0b3IgZGUgdGVzZSBMYVRlWCIsCiAgInNob3J0X25hbWUiOiAiTGF2b3VyYSIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGYyZTJhIiwKICAidGhlbWVfY29sb3IiOiAiIzBmMmUyYSIKfQ==" />
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZlcnNvIOKAlCBlZGl0b3IgZGUgdGVzZSBMYVRlWCIsCiAgInNob3J0X25hbWUiOiAiVmVyc28iLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzBmMmUyYSIsCiAgInRoZW1lX2NvbG9yIjogIiMwZjJlMmEiCn0=" />
 <style>
   /* ---------- design tokens ---------- */
   :root{
@@ -168,13 +168,14 @@
 <div class="app">
   <header class="topbar">
     <div class="brand">
-      <span class="mark"><b>L</b>avoura</span>
+      <span class="mark"><b>V</b>erso</span>
       <span class="sub">tese · UTFPR-PG</span>
     </div>
     <div class="spacer"></div>
-    <button class="tbtn" id="btnImport" title="Abrir um .zip da tese">Abrir .zip</button>
+    <button class="tbtn" id="btnImport" title="Abrir um .zip local (alternativa)">Abrir .zip</button>
     <button class="tbtn" id="btnExport" title="Baixar projeto .zip">Exportar</button>
     <button class="tbtn" id="btnRepo" title="Conectar repositório do GitHub">Repo</button>
+    <button class="tbtn" id="btnPull" title="Carregar a tese do seu repositório">Puxar do GitHub</button>
     <button class="tbtn" id="btnSave" title="Salvar no dispositivo (Ctrl+S)">Salvar</button>
     <button class="tbtn primary" id="btnPublish" title="Publicar e compilar (Ctrl+Enter)">Publicar &amp; compilar</button>
     <input type="file" id="zipInput" accept=".zip" style="display:none">
@@ -224,33 +225,35 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
 <script>
 /* ============================================================
-   Lavoura — editor de tese LaTeX (PWA)
+   Verso — editor de tese LaTeX (PWA)
    - Edição offline com persistência em IndexedDB
    - Árvore de arquivos baseada na estrutura real da tese
    - Gancho de compilação (endpoint remoto OU instruções de CI)
    ============================================================ */
 
-/* ---------- 1. estrutura inicial (placeholder até abrir o .zip) ---------- */
-/* O app foi feito pra ABRIR O .ZIP REAL da sua tese (botão "Abrir .zip").
-   Este seed mínimo só existe pra primeira visita não ficar vazia. */
+/* ---------- 1. estrutura inicial (placeholder até carregar do GitHub) ---------- */
+/* App genérico: nada seu fica embutido. Token e tese vivem só no seu
+   navegador. Use "Repo" + "Puxar do GitHub" pra carregar do repo privado. */
 const SEED = {
-  "LEIA-ME.txt": `Bem-vindo ao Lavoura — editor da sua tese.
+  "LEIA-ME.txt": `Bem-vindo ao Verso — editor de tese LaTeX.
+
+Este app é genérico: funciona com qualquer repositório.
+Nada fica embutido nele — seu token e sua tese ficam só
+aqui no seu navegador (IndexedDB).
 
 PRIMEIROS PASSOS
-1. "Abrir .zip": selecione tese-latex-master.zip. O app
-   carrega TODOS os arquivos reais (main.tex, capítulos,
-   refs.bib, .cls, imagens e selos EPS), com as pastas.
-2. "Repo": conecte seu repositório do GitHub (usuário,
-   nome do repo e um token de acesso). Fica só aqui no
-   dispositivo.
-3. Escreva à vontade. "Publicar & compilar" commita as
-   mudanças, o GitHub Actions compila e o PDF aparece no
-   preview — sem zip, sem upload manual.
+1. "Repo": conecte seu repositório PRIVADO do GitHub
+   (usuário, repo, branch e um token de acesso).
+2. "Puxar do GitHub": carrega a tese que já está no repo
+   (main.tex, capítulos, refs.bib, .cls, imagens, EPS).
+3. Edite à vontade. "Publicar & compilar" commita as
+   mudanças, o Actions compila e o PDF aparece no preview.
 
-Tudo salvo no dispositivo (IndexedDB) e offline pra editar.
+Alternativa offline: "Abrir .zip" carrega de um arquivo
+local em vez do GitHub.
 
-Lembre de criar o chapters/diag-causal.tex (o main.tex faz
-\\input dele). O app marca arquivos ausentes em âmbar.`,
+Dica: o app marca em âmbar qualquer arquivo que o main.tex
+referencia via \\input mas que não existe (ex.: diag-causal).`,
 };
 
 /* arquivos que o main.tex referencia via \\input mas podem faltar.
@@ -447,7 +450,7 @@ async function commitAll(onProgress){
   if(!treeR.ok)throw new Error("tree: HTTP "+treeR.status);
   const treeSha=(await treeR.json()).sha;
   // 4) commit
-  const msg="Lavoura: atualiza a tese ("+new Date().toLocaleString("pt-BR")+")";
+  const msg="Verso: atualiza a tese ("+new Date().toLocaleString("pt-BR")+")";
   const commitBody={message:msg,tree:treeSha};
   if(parentSha)commitBody.parents=[parentSha];
   const commitR=await gh(`${base}/commits`,{method:"POST",body:JSON.stringify(commitBody)});
@@ -538,11 +541,9 @@ async function monitorRun(commitSha){
 
   logLine("Compilação concluída. Buscando o PDF…","ok");
   await sleep(2500);
-  const pdfUrl=`https://github.com/${GH.user}/${GH.repo}/releases/download/${GH_TAG}/${GH_ASSET}?t=${Date.now()}`;
   try{
-    const r=await fetch(pdfUrl,{cache:"no-store"});
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    const blob=await r.blob();const url=URL.createObjectURL(blob);
+    const blob=await fetchReleasePdf();
+    const url=URL.createObjectURL(blob);
     $("#previewPh").style.display="none";const f=$("#pdfframe");f.style.display="block";f.src=url;
     logLine("PDF pronto e carregado no preview. ✓","ok");
     notify("Tese compilada ✓","Seu PDF está pronto e já apareceu no preview.");
@@ -553,6 +554,21 @@ async function monitorRun(commitSha){
     logLine("Confira a Release \""+GH_TAG+"\" no repositório.","warn");
     notify("Tese compilada","O PDF foi gerado; abra a Release pra ver.");
   }
+}
+
+/* baixa o asset da Release via API autenticada (funciona em repo privado).
+   1) acha a Release pela tag  2) pega o id do asset  3) baixa com Accept octet-stream */
+async function fetchReleasePdf(){
+  const relR=await gh(`/repos/${GH.user}/${GH.repo}/releases/tags/${GH_TAG}`);
+  if(!relR.ok)throw new Error("Release \""+GH_TAG+"\" não encontrada (HTTP "+relR.status+")");
+  const rel=await relR.json();
+  const asset=(rel.assets||[]).find(a=>a.name===GH_ASSET)||(rel.assets||[])[0];
+  if(!asset)throw new Error("a Release não tem o PDF anexado ainda");
+  // o download autenticado do asset usa Accept: application/octet-stream
+  const dl=await fetch(GH_API+`/repos/${GH.user}/${GH.repo}/releases/assets/${asset.id}`,{
+    headers:{"Authorization":"Bearer "+GH.token,"Accept":"application/octet-stream"}});
+  if(!dl.ok)throw new Error("download do PDF: HTTP "+dl.status);
+  return dl.blob();
 }
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -629,6 +645,54 @@ async function importZip(file){
   toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos carregados");
 }
 
+/* ---------- 7c-bis. puxar a tese do GitHub (repo privado) ---------- */
+/* lê a árvore completa do branch via Git Trees API (recursiva) e baixa
+   cada blob. Funciona em repo privado porque usa o token. */
+async function pullFromGitHub(){
+  if(!GH.user||!GH.repo||!GH.token){toast("Conecte o repo em \"Repo\" primeiro");return;}
+  if(Object.keys(files).length>1 && dirty &&
+     !confirm("Isso substitui o conteúdo atual pelo que está no GitHub. Continuar?"))return;
+  clearLog();
+  logLine("Lendo "+GH.user+"/"+GH.repo+" ("+GH.branch+")…");
+  $("#btnPull").disabled=true;
+  try{
+    // ref -> commit -> tree recursiva
+    const refR=await gh(`/repos/${GH.user}/${GH.repo}/git/ref/heads/${GH.branch}`);
+    if(!refR.ok)throw new Error("branch \""+GH.branch+"\" não encontrado (HTTP "+refR.status+")");
+    const commitSha=(await refR.json()).object.sha;
+    const cR=await gh(`/repos/${GH.user}/${GH.repo}/git/commits/${commitSha}`);
+    const treeSha=(await cR.json()).tree.sha;
+    const tR=await gh(`/repos/${GH.user}/${GH.repo}/git/trees/${treeSha}?recursive=1`);
+    if(!tR.ok)throw new Error("árvore: HTTP "+tR.status);
+    const tree=(await tR.json()).tree.filter(n=>n.type==="blob");
+
+    // ignora o próprio app e o workflow ao carregar a tese
+    const skip=p=>p==="index.html"||p.startsWith(".github/")||p===".gitignore";
+    const newText={},newBin={};let done=0;
+    const blobs=tree.filter(n=>!skip(n.path));
+    for(const n of blobs){
+      const bR=await gh(`/repos/${GH.user}/${GH.repo}/git/blobs/${n.sha}`);
+      if(!bR.ok)throw new Error(n.path+": HTTP "+bR.status);
+      const b64=(await bR.json()).content.replace(/\n/g,"");
+      if(isText(n.path)) newText[n.path]=decodeURIComponent(escape(atob(b64)));
+      else newBin[n.path]=b64;
+      done++;if(done===1||done===blobs.length||done%5===0)logLine("  baixando… ("+done+"/"+blobs.length+")");
+    }
+    if(!Object.keys(newText).length)throw new Error("nenhum arquivo de texto encontrado no repo");
+    files=newText;binaries=newBin;
+    await persistEverything();rescanReferenced();
+    openFile(files["main.tex"]?"main.tex":Object.keys(files)[0]);
+    setDirty(false);
+    logLine("Tese carregada do GitHub. ✓","ok");
+    toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos");
+  }catch(e){
+    logLine("Falha ao puxar do GitHub: "+e.message,"err");
+    if(/401|403|Bad credentials|Resource not accessible/i.test(e.message))
+      logLine("Verifique o token em \"Repo\" (Contents: read).","warn");
+    toast("Erro ao puxar do GitHub");
+  }finally{$("#btnPull").disabled=false;}
+}
+
 /* ---------- 7d. exportar .zip ---------- */
 async function exportZip(){
   if(!window.JSZip){toast("Biblioteca de zip não carregou");return;}
@@ -655,6 +719,7 @@ $("#btnPublish").onclick=publish;
 $("#btnExport").onclick=exportZip;
 $("#btnImport").onclick=()=>$("#zipInput").click();
 $("#btnRepo").onclick=configRepo;
+$("#btnPull").onclick=pullFromGitHub;
 $("#zipInput").onchange=e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>{console.error(err);toast("Erro ao ler zip");});e.target.value="";};
 document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();saveAll();}

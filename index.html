@@ -9,13 +9,13 @@
 <style>
   /* ---------- design tokens ---------- */
   :root{
-    --ink:#11201d;          /* near-black green-tinted text */
-    --paper:#f3efe4;        /* warm academic paper */
-    --paper-2:#e9e3d3;      /* slightly darker panel */
-    --line:#cdc4ad;         /* hairline */
-    --tex:#0f6b5c;          /* TeX teal accent */
-    --tex-deep:#0f2e2a;     /* deep teal for chrome */
-    --amber:#b5641e;        /* warning/secondary accent */
+    --ink:#11201d;
+    --paper:#f3efe4;
+    --paper-2:#e9e3d3;
+    --line:#cdc4ad;
+    --tex:#0f6b5c;
+    --tex-deep:#0f2e2a;
+    --amber:#b5641e;
     --muted:#5d6660;
     --sel:#cfe4dd;
     --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
@@ -35,95 +35,121 @@
   ::selection{background:var(--sel)}
 
   /* ---------- app shell ---------- */
-  .app{display:grid;grid-template-rows:auto 1fr;height:100%;height:100dvh}
+  /* Sem topbar: layout é só as colunas em altura total */
+  .app{display:grid;grid-template-rows:1fr;height:100%;height:100dvh}
 
-  header.topbar{
-    display:flex;align-items:center;gap:10px;
-    padding:8px 12px;
-    background:var(--tex-deep);
-    color:var(--paper);
-    border-bottom:1px solid #06403a;
-  }
-  .brand{display:flex;align-items:baseline;gap:8px;user-select:none;white-space:nowrap}
-  .brand .mark{
-    font-family:var(--serif);font-style:italic;font-size:20px;letter-spacing:.3px;
-  }
-  .brand .mark b{color:#7fd8c6;font-style:normal;font-weight:700}
-  .brand .sub{font-size:10px;color:#8fb3ab;letter-spacing:.14em;text-transform:uppercase}
-  .topbar .spacer{flex:1}
-  .actions{display:flex;align-items:center;gap:8px}
-  .tbtn{
+  /* ---------- dropdown menus ---------- */
+  .dd-wrap{position:relative;display:inline-flex}
+  .dd-trigger{
     background:#11423b;color:var(--paper);border:1px solid #1c5a50;
-    padding:7px 13px;border-radius:7px;font-size:13px;font-weight:600;
-    display:inline-flex;align-items:center;gap:7px;transition:.15s;
+    padding:6px 11px;border-radius:7px;font-size:12px;font-weight:600;
+    display:inline-flex;align-items:center;gap:5px;transition:.15s;
     white-space:nowrap;
   }
-  .tbtn:hover{background:#185d52;border-color:#2a7568}
-  .tbtn.primary{background:var(--tex);border-color:#13a48c;color:#fff}
-  .tbtn.primary:hover{background:#13a48c}
-  .tbtn:disabled{opacity:.5;cursor:not-allowed}
-  .menu-toggle{display:none;font-size:18px;line-height:1;padding:6px 12px}
+  .dd-trigger:hover{background:#185d52;border-color:#2a7568}
+  .dd-trigger .arr{font-size:9px;opacity:.7;margin-left:1px}
+  .dd-menu{
+    position:absolute;top:calc(100% + 5px);left:0;z-index:60;
+    background:var(--tex-deep);border:1px solid #1c5a50;border-radius:9px;
+    padding:5px;box-shadow:0 12px 30px rgba(0,0,0,.45);
+    min-width:170px;display:none;flex-direction:column;gap:2px;
+  }
+  .dd-menu.open{display:flex}
+  .dd-item{
+    background:none;border:0;color:var(--paper);
+    padding:7px 11px;border-radius:6px;font-size:12px;font-weight:500;
+    text-align:left;display:flex;align-items:center;gap:8px;transition:.12s;
+    white-space:nowrap;
+  }
+  .dd-item:hover{background:#11423b}
+  .dd-item .di{font-size:13px;width:16px;text-align:center}
+  .dd-sep{height:1px;background:#1c5a50;margin:3px 0}
 
   /* ---------- body columns ---------- */
   .cols{
-    display:grid;grid-template-columns:240px 1fr 1fr;
+    display:grid;
+    /* larguras redimensionáveis via --w1/--w2; o restante vai pro PDF */
+    grid-template-columns:var(--w1,220px) var(--w2,1fr) 1fr;
     min-height:0;height:100%;position:relative;overflow:hidden;
     background:var(--paper);
   }
   .pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
-  .pane.files{background:var(--paper-2);border-right:1px solid var(--line)}
+  .pane.files{background:var(--tex-deep);border-right:1px solid #06403a}
   .pane.editor{border-right:1px solid var(--line)}
 
-  @media (max-width:880px){
-    /* ações secundárias viram menu suspenso */
-    .menu-toggle{display:inline-flex}
-    .actions{
-      position:absolute;top:52px;right:10px;z-index:40;
-      flex-direction:column;align-items:stretch;gap:6px;
-      background:var(--tex-deep);border:1px solid #1c5a50;border-radius:10px;
-      padding:8px;box-shadow:0 12px 30px rgba(0,0,0,.4);
-      display:none;min-width:180px;
-    }
-    .actions.open{display:flex}
-    .actions .tbtn{justify-content:flex-start;width:100%}
-
-    /* uma coluna por vez, controlada pela tabbar */
-    .cols{grid-template-columns:1fr}
-    .pane{grid-column:1;grid-row:1}
-    .pane.files,.pane.preview{display:none}
-    .cols.show-files .pane.editor{display:none}
-    .cols.show-files .pane.files{display:flex}
-    .cols.show-preview .pane.editor{display:none}
-    .cols.show-preview .pane.preview{display:flex}
+  /* ---------- resize handles ---------- */
+  .resize-handle{
+    position:absolute;top:0;bottom:0;width:5px;cursor:col-resize;
+    background:transparent;z-index:20;transition:background .15s;
   }
+  .resize-handle:hover,.resize-handle.dragging{background:#7fd8c6;opacity:.5}
+
+  /* ---------- file pane: header with actions + tree ---------- */
+  .files-header{
+    padding:10px 10px 8px;
+    border-bottom:1px solid #06403a;
+    background:var(--tex-deep);
+    display:flex;flex-direction:column;gap:7px;
+    flex-shrink:0;
+  }
+  .files-brand{
+    display:flex;align-items:baseline;gap:7px;user-select:none;
+  }
+  .files-brand .mark{
+    font-family:var(--serif);font-style:italic;font-size:17px;letter-spacing:.3px;color:#fff;
+  }
+  .files-brand .mark b{color:#7fd8c6;font-style:normal;font-weight:700}
+  .files-brand .sub{font-size:9px;color:#8fb3ab;letter-spacing:.13em;text-transform:uppercase}
+  .files-actions{display:flex;gap:10px;align-items:center;padding:4px 0 2px}
+
+  /* icon buttons — large circular SVG style */
+  .ibtn{
+    background:none;border:none;padding:0;
+    color:#fff;opacity:.75;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:50%;transition:.15s;
+    flex-shrink:0;
+  }
+  .ibtn:hover{opacity:1;background:rgba(255,255,255,.1)}
+  .ibtn:active{background:rgba(255,255,255,.16)}
+  .ibtn:disabled{opacity:.25;cursor:not-allowed}
+  .ibtn svg{width:26px;height:26px;display:block}
+
+  /* dd trigger as icon button inside files pane */
+  .files-header .dd-trigger{
+    background:none;border:none;padding:0;
+    color:#fff;opacity:.75;
+    display:inline-flex;align-items:center;justify-content:center;
+    width:36px;height:36px;border-radius:50%;transition:.15s;
+    flex-shrink:0;
+  }
+  .files-header .dd-trigger:hover{opacity:1;background:rgba(255,255,255,.1)}
+  .files-header .dd-trigger svg{width:26px;height:26px;display:block}
+  .files-header .dd-trigger .arr{display:none}
 
   /* ---------- file tree ---------- */
-  .files h2,.preview h2{
-    margin:0;padding:11px 14px 9px;font-size:11px;letter-spacing:.14em;
-    text-transform:uppercase;color:var(--muted);font-weight:700;
-    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;
-  }
   .tree{overflow:auto;flex:1;padding:6px 0}
-  .grp{padding:9px 14px 3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#9a9176}
+  .grp{padding:9px 14px 3px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8fb3ab}
   .fitem{
     display:flex;align-items:center;gap:8px;padding:6px 14px 6px 18px;
-    font-size:13px;color:var(--ink);border-left:3px solid transparent;
+    font-size:13px;color:#fff;border-left:3px solid transparent;
   }
-  .fitem:hover{background:#ded7c4}
-  .fitem.active{background:#fff;border-left-color:var(--tex);font-weight:600}
-  .fitem .ic{font-size:11px;color:var(--tex);width:14px;text-align:center}
-  .fitem.missing{color:var(--amber)}
-  .fitem.missing .ic{color:var(--amber)}
-  .fitem small{margin-left:auto;color:#a59c82;font-size:10px}
+  .fitem:hover{background:#11423b}
+  .fitem.active{background:#0f6b5c;border-left-color:#7fd8c6;font-weight:600;color:#fff}
+  .fitem .ic{font-size:13px;color:#7fd8c6;width:16px;text-align:center;line-height:1}
+  .fitem.missing{color:#f5a96e}
+  .fitem.missing .ic{color:#f5a96e}
+  .fitem small{margin-left:auto;color:#8fb3ab;font-size:10px}
 
-  /* ---------- editor ---------- */
+  /* ---------- editor header ---------- */
   .ed-head{
-    display:flex;align-items:center;gap:10px;padding:8px 12px;
-    border-bottom:1px solid var(--line);background:var(--paper);
+    display:flex;align-items:center;gap:10px;padding:7px 12px;
+    border-bottom:1px solid #06403a;background:var(--tex-deep);
+    flex-shrink:0;
   }
-  .crumb{font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .crumb b{color:var(--ink)}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);opacity:0}
+  .crumb{font-family:var(--mono);font-size:12px;color:#8fb3ab;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .crumb b{color:#fff}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);opacity:0;flex-shrink:0}
   .dot.on{opacity:1}
   .editor-wrap{flex:1;min-height:0;overflow:hidden;background:#fbfaf5}
   .CodeMirror{height:100%!important;font-family:var(--mono);font-size:13.5px;line-height:1.65}
@@ -139,28 +165,62 @@
   .cm-s-verso .cm-tex-env{color:#b5641e;font-weight:600}
 
   /* ---------- preview ---------- */
-  .pane.preview{background:#dad3c2}
+  .pane.preview{background:#dad3c2;display:flex;flex-direction:column}
+  .preview-head{
+    display:flex;align-items:center;gap:8px;padding:7px 12px;
+    border-bottom:1px solid #06403a;background:var(--tex-deep);flex-shrink:0;
+  }
+  .preview-title{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#8fb3ab;font-weight:700;flex:1}
+  .pbtn{
+    background:#b8b0a0;color:var(--ink);border:1px solid #a8a090;
+    padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;
+    display:inline-flex;align-items:center;gap:5px;transition:.13s;white-space:nowrap;
+  }
+  .pbtn:hover{background:#a8a090}
+  .pbtn.primary{background:var(--tex);color:#fff;border-color:#13a48c}
+  .pbtn.primary:hover{background:#13a48c}
+  .pbtn:disabled{opacity:.45;cursor:not-allowed}
+  .pbtn .arr{font-size:9px;opacity:.7}
+
+  /* compile dropdown inside preview header — dark theme */
+  .preview-head .dd-trigger{
+    background:var(--tex);color:#fff;border-color:#13a48c;
+    font-size:12px;padding:5px 11px;
+  }
+  .preview-head .dd-trigger:hover{background:#13a48c}
+
   .preview .ph{
     flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
     text-align:center;color:var(--muted);padding:30px;gap:14px;
   }
   .preview .ph .big{font-family:var(--serif);font-size:21px;color:var(--ink)}
   .preview .ph code{font-family:var(--mono);font-size:12px;background:#cfc8b5;padding:2px 6px;border-radius:4px}
-  .pdfframe{flex:1;border:0;width:100%;background:#cfc8b5}
+  .pdfframe{flex:1;border:0;width:100%;background:#cfc8b5;min-height:0}
+
+  /* ---------- log (collapsible) ---------- */
   #log{
     font-family:var(--mono);font-size:11.5px;line-height:1.5;color:#2c3531;
     background:#efe9db;border-top:1px solid var(--line);
-    padding:10px 14px;max-height:34%;overflow:auto;white-space:pre-wrap;display:none;
+    padding:10px 14px;height:0;overflow:auto;white-space:pre-wrap;
+    transition:height .2s ease;flex-shrink:0;
   }
-  #log.show{display:block}
+  #log.open{height:200px}
   #log .err{color:#a3331b}
   #log .ok{color:#1d6b4f}
   #log .warn{color:#9a6411}
+  .log-toggle{
+    background:none;border:none;color:#8fb3ab;font-size:11px;
+    padding:3px 6px;border-radius:4px;transition:.13s;display:inline-flex;align-items:center;gap:4px;
+    font-family:var(--mono);
+  }
+  .log-toggle:hover{background:rgba(255,255,255,.08);color:#fff}
+  .log-toggle .lt-arrow{transition:transform .2s;display:inline-block}
+  .log-toggle.log-open .lt-arrow{transform:rotate(180deg)}
 
   /* ---------- mobile tabbar ---------- */
   .tabbar{display:none}
   @media (max-width:880px){
-    .app{grid-template-rows:auto 1fr auto}
+    .app{grid-template-rows:1fr auto}
     .tabbar{
       display:flex;z-index:30;
       background:var(--tex-deep);border-top:1px solid #06403a;
@@ -171,6 +231,14 @@
     }
     .tabbar button.active{color:#7fd8c6}
     .tabbar button .ti{font-size:16px}
+    .cols{grid-template-columns:1fr}
+    .pane{grid-column:1;grid-row:1}
+    .pane.files,.pane.preview{display:none}
+    .cols.show-files .pane.editor{display:none}
+    .cols.show-files .pane.files{display:flex}
+    .cols.show-preview .pane.editor{display:none}
+    .cols.show-preview .pane.preview{display:flex}
+    .resize-handle{display:none}
   }
 
   .toast{
@@ -187,35 +255,57 @@
 </head>
 <body>
 <div class="app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="mark"><b>V</b>erso</span>
-      <span class="sub">editor LaTeX</span>
-    </div>
-    <div class="spacer"></div>
-    <!-- ações secundárias: viram menu no mobile -->
-    <div class="actions" id="actions">
-      <button class="tbtn" id="btnPull" title="Carregar o projeto do seu repositório">Puxar do GitHub</button>
-      <button class="tbtn" id="btnRepo" title="Conectar repositório do GitHub">Repo</button>
-      <button class="tbtn" id="btnSave" title="Salvar no dispositivo (Ctrl+S)">Salvar</button>
-      <button class="tbtn" id="btnImport" title="Abrir um .zip local (alternativa)">Abrir .zip</button>
-      <button class="tbtn" id="btnExport" title="Baixar projeto .zip">Exportar .zip</button>
-    </div>
-    <!-- ação principal: sempre visível -->
-    <button class="tbtn primary" id="btnPublish" title="Publicar e compilar (Ctrl+Enter)">Publicar</button>
-    <!-- botão de menu: só aparece no mobile -->
-    <button class="tbtn menu-toggle" id="btnMenu" title="Mais ações" aria-label="Mais ações">⋯</button>
-    <input type="file" id="zipInput" accept=".zip" style="display:none">
-  </header>
-
   <div class="cols" id="cols">
-    <!-- file tree -->
+
+    <!-- ===== COLUNA 1: Arquivos ===== -->
     <aside class="pane files">
-      <h2>Arquivos</h2>
+      <div class="files-header">
+        <div class="files-brand">
+          <span class="mark"><b>V</b>erso</span>
+          <span class="sub">editor LaTeX</span>
+        </div>
+        <div class="files-actions">
+          <!-- GitHub dropdown icon -->
+          <div class="dd-wrap" id="ghWrap">
+            <button class="dd-trigger" id="btnGhDrop" title="GitHub">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+              <span class="arr"></span>
+            </button>
+            <div class="dd-menu" id="ghMenu">
+              <button class="dd-item" id="btnRepo"><span class="di">🔗</span>Conectar GitHub</button>
+              <button class="dd-item" id="btnPull"><span class="di">⬇</span>Sincronizar</button>
+            </div>
+          </div>
+          <!-- Importar ZIP -->
+          <button class="ibtn" id="btnImport" title="Importar .zip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <polyline points="9 15 12 18 15 15"/>
+            </svg>
+          </button>
+          <!-- Exportar ZIP -->
+          <button class="ibtn" id="btnExport" title="Exportar .zip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="12" x2="12" y2="18"/>
+              <polyline points="9 15 12 12 15 15"/>
+            </svg>
+          </button>
+
+        </div>
+      </div>
       <div class="tree" id="tree"></div>
     </aside>
 
-    <!-- editor -->
+    <!-- resize handle 1 (files | editor) -->
+    <div class="resize-handle" id="rh1" style="left:0"></div>
+
+    <!-- ===== COLUNA 2: Editor ===== -->
     <section class="pane editor">
       <div class="ed-head">
         <span class="dot" id="dirtyDot"></span>
@@ -224,15 +314,35 @@
       <div class="editor-wrap"><textarea id="code"></textarea></div>
     </section>
 
-    <!-- preview -->
+    <!-- resize handle 2 (editor | preview) -->
+    <div class="resize-handle" id="rh2" style="left:0"></div>
+
+    <!-- ===== COLUNA 3: PDF Preview ===== -->
     <section class="pane preview">
-      <h2>Saída — PDF</h2>
+      <div class="preview-head">
+        <span class="preview-title">PDF</span>
+        <!-- Log toggle -->
+        <button class="log-toggle" id="btnLog" title="Mostrar/ocultar console">
+          Console <span class="lt-arrow">▲</span>
+        </button>
+        <!-- Compilar PDF dropdown -->
+        <div class="dd-wrap" id="compileWrap">
+          <button class="dd-trigger preview-head" id="btnCompileDrop" title="Compilar PDF (Ctrl+Enter)" style="background:var(--tex);color:#fff;border-color:#13a48c">
+            ▶ Compilar PDF <span class="arr">▾</span>
+          </button>
+          <div class="dd-menu" id="compileMenu" style="left:auto;right:0">
+            <button class="dd-item" id="btnPublish"><span class="di">🚀</span>Compilar e publicar</button>
+            <div class="dd-sep"></div>
+            <button class="dd-item" id="btnLoadPdf"><span class="di">📄</span>Carregar último PDF</button>
+          </div>
+        </div>
+      </div>
       <div class="ph" id="previewPh">
-        <div class="big">Escreva. Publique. Veja.</div>
-        <div>Edite à esquerda e clique <code>Publicar</code>.<br>
-        O app commita no seu GitHub, o Actions compila com TeX Live<br>
-        e o PDF aparece aqui — sem zip, sem upload manual.</div>
-        <div>Primeira vez? Clique em <code>Repo</code> pra conectar seu repositório.</div>
+        <div class="big">Escreva. Compile. Veja.</div>
+        <div>Edite à esquerda e clique <code>Compilar PDF</code>.<br>
+        O app commita no GitHub, o Actions compila com TeX Live<br>
+        e o PDF aparece aqui — sem upload manual.</div>
+        <div>Primeira vez? Use <code>GitHub → Conectar GitHub</code>.</div>
       </div>
       <iframe class="pdfframe" id="pdfframe" style="display:none"></iframe>
       <div id="log"></div>
@@ -247,20 +357,16 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<input type="file" id="zipInput" accept=".zip" style="display:none">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
 <script>
 /* ============================================================
    Verso — editor LaTeX (PWA)
-   - Edição offline com persistência em IndexedDB
-   - Árvore de arquivos baseada na estrutura do projeto
-   - Gancho de compilação (endpoint remoto OU instruções de CI)
    ============================================================ */
 
-/* ---------- 1. estrutura inicial (placeholder até carregar do GitHub) ---------- */
-/* App genérico: nada seu fica embutido. Token e tese vivem só no seu
-   navegador. Use "Repo" + "Puxar do GitHub" pra carregar do repo privado. */
+/* ---------- 1. seed ---------- */
 const SEED = {
   "LEIA-ME.txt": `Bem-vindo ao Verso — editor LaTeX.
 
@@ -269,32 +375,23 @@ tese, currículo...). Nada fica embutido no app: seu token
 e seus arquivos ficam só aqui no navegador (IndexedDB).
 
 PRIMEIROS PASSOS
-1. "Repo": conecte seu repositório do GitHub
-   (usuário, repo, branch e um token de acesso).
-2. "Puxar do GitHub": carrega os arquivos que já estão
-   no repo (.tex, .bib, .cls/.sty, imagens, etc.).
-3. Edite à vontade. "Publicar" commita as mudanças,
+1. "GitHub → Conectar GitHub": informe usuário, repo, branch e token.
+2. "GitHub → Sincronizar": carrega os arquivos do repo.
+3. Edite à vontade. "Compilar PDF" commita as mudanças,
    o GitHub Actions compila e o PDF aparece no preview.
 
 O arquivo-raiz é detectado automaticamente pelo
 \\documentclass — não precisa se chamar main.tex.
 
-Alternativa offline: "Abrir .zip" carrega de um arquivo
-local em vez do GitHub.
-
-Dica: o app destaca em âmbar qualquer arquivo que um
-\\input referencie mas que ainda não exista.`,
+Alternativa offline: "ZIP → Importar .zip" carrega de um
+arquivo local em vez do GitHub.`,
 };
 
-/* arquivos que o main.tex referencia via \\input mas podem faltar.
-   Começa vazio e é recalculado a partir do main.tex real carregado. */
 let REFERENCED = [];
-
-/* extensões tratadas como texto editável; o resto vira binário (base64) */
 const TEXT_EXT=/\.(tex|bib|cls|sty|txt|md|cfg|lco|bst|ltx|gitignore)$/i;
 const isText=p=>TEXT_EXT.test(p)||(/(^|\/)\.[^/]+$/.test(p)&&!/\.(jpg|jpeg|png|gif|pdf|eps|ttf|otf)$/i.test(p));
 
-/* ---------- 2. IndexedDB mínimo ---------- */
+/* ---------- 2. IndexedDB ---------- */
 const DB="lavoura",STORE="files";
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);
   r.onupgradeneeded=()=>r.result.createObjectStore(STORE);
@@ -311,27 +408,23 @@ async function dbAll(){const d=await idb();return new Promise((res,rej)=>{
   c.onerror=()=>rej(c.error);});}
 
 /* ---------- 3. estado ---------- */
-let files={};          // path -> texto (arquivos editáveis)
-let binaries={};       // path -> base64 (imagens, eps, etc.)
-let current=null;      // active path
-let rootTex=null;      // arquivo-raiz detectado (contém \documentclass)
+let files={};
+let binaries={};
+let current=null;
+let rootTex=null;
 let dirty=false;
 const $=s=>document.querySelector(s);
 
-/* detecta o arquivo-raiz: o .tex que contém \documentclass.
-   Se houver vários, prefere um chamado main.tex; senão, o primeiro. */
 function detectRoot(){
   const texs=Object.keys(files).filter(p=>p.endsWith(".tex"));
   const withClass=texs.filter(p=>/\\documentclass/.test(files[p]));
   if(withClass.length){
     rootTex=withClass.includes("main.tex")?"main.tex":withClass.sort()[0];
   }else{
-    // sem \documentclass visível: cai pro main.tex ou primeiro .tex
     rootTex=files["main.tex"]?"main.tex":(texs.sort()[0]||null);
   }
   return rootTex;
 }
-/* nome do PDF derivado do raiz: cv.tex -> cv.pdf */
 function pdfName(){return rootTex?rootTex.replace(/\.tex$/,"").split("/").pop()+".pdf":"output.pdf";}
 
 /* ---------- 4. CodeMirror ---------- */
@@ -340,36 +433,46 @@ const cm=CodeMirror.fromTextArea($("#code"),{
   autofocus:true,viewportMargin:Infinity,
 });
 cm.on("change",()=>{if(current){files[current]=cm.getValue();setDirty(true);}});
-
 function setDirty(v){dirty=v;$("#dirtyDot").classList.toggle("on",v);}
 
 /* ---------- 5. árvore de arquivos ---------- */
+/* Ícones por tipo:
+   .tex  → 🗒  (folha com escrita)
+   .bib  → 📖  (livro / referência)
+   .cls/.sty → ⚙  (engrenagem / configuração)
+   outros → ·
+*/
+function fileIcon(p,missing){
+  if(missing) return "⚠";
+  if(p.endsWith(".tex")) return "🗒";
+  if(p.endsWith(".bib")) return "📖";
+  if(p.endsWith(".cls")||p.endsWith(".sty")) return "⚙";
+  return "·";
+}
+
 function basename(p){return p.split("/").pop();}
 function buildTree(){
   const tree=$("#tree");tree.innerHTML="";
-  // agrupa por pasta de topo real (raiz + cada subpasta)
-  const groups={};            // folder -> [paths]
-  const ROOT="\u0000raiz";    // chave especial pra raiz (ordena primeiro)
+  const groups={};
+  const ROOT="\u0000raiz";
   const add=(p)=>{
     const folder=p.includes("/")?p.slice(0,p.indexOf("/")):ROOT;
     (groups[folder]||(groups[folder]=[])).push(p);
   };
   Object.keys(files).forEach(add);
-  // arquivos referenciados pelo main mas ausentes
   REFERENCED.forEach(p=>{if(!(p in files))add(p);});
 
   const addItem=(p)=>{
     const missing=!(p in files);
     const el=document.createElement("div");
     el.className="fitem"+(p===current?" active":"")+(missing?" missing":"");
-    const ext=p.endsWith(".bib")?"❡":p.endsWith(".tex")?"§":"·";
-    el.innerHTML=`<span class="ic">${missing?"!":ext}</span><span>${basename(p)}</span>`+
-      (missing?`<small>ausente</small>`:``);
+    const ic=fileIcon(p,missing);
+    el.innerHTML=`<span class="ic">${ic}</span><span>${basename(p)}</span>`+
+      (missing?`<small>ausente</small>`:``);;
     el.onclick=()=>{ if(missing){ if(confirm(`Criar ${p}? Um \\input aponta para ele, mas o arquivo não existe.`)){ files[p]="% "+p+"\n"; openFile(p); buildTree(); setDirty(true);} return;} openFile(p); };
     tree.appendChild(el);
   };
 
-  // raiz primeiro, depois as pastas em ordem alfabética
   const order=Object.keys(groups).sort((a,b)=>{
     if(a===ROOT)return -1;if(b===ROOT)return 1;return a.localeCompare(b);});
   for(const folder of order){
@@ -389,7 +492,6 @@ function openFile(p){
 }
 
 /* ---------- 6. persistência ---------- */
-/* chaves de texto = path; chaves binárias = "bin::"+path */
 async function persistEverything(){
   const d=await idb();
   await new Promise((res,rej)=>{
@@ -411,7 +513,6 @@ async function saveAll(){
 async function load(){
   const stored=await dbAll();
   files={};binaries={};
-  // carrega config do repo, se houver
   GH={user:stored["__gh_user"]||"",repo:stored["__gh_repo"]||"",
       token:stored["__gh_token"]||"",branch:stored["__gh_branch"]||"main"};
   delete stored["__gh_user"];delete stored["__gh_repo"];
@@ -425,40 +526,45 @@ async function load(){
   }
   rescanReferenced();buildTree();
   openFile(rootTex||Object.keys(files)[0]);
+  /* ao carregar, tenta mostrar o último PDF gerado */
+  tryLoadLastPdf();
 }
 
-/* ---------- 7. publicar no GitHub: commit → Actions → PDF ---------- */
-/* Um clique: commita os arquivos alterados via API do GitHub, monitora
-   o workflow do Actions e, ao concluir, carrega o PDF da Release no
-   preview. Token e config ficam só no dispositivo (IndexedDB). */
-const GH_TAG="ultimo-pdf";        // tag da Release publicada pelo workflow (verso.yml)
-/* o PDF publicado tem o nome do arquivo-raiz (ex.: main.pdf, cv.pdf).
-   Derivado dinamicamente via pdfName(); a busca abaixo também tem fallback. */
-const GH_BRANCH="main";           // branch alvo dos commits
+/* ---------- 7. GitHub ---------- */
+const GH_TAG="ultimo-pdf";
+const GH_BRANCH="main";
 const GH_API="https://api.github.com";
 let GH={user:"",repo:"",token:"",branch:GH_BRANCH};
-let lastPushedSha={};             // path -> sha do último conteúdo enviado
+let lastPushedSha={};
 
 function setGhCfg(o){GH={...GH,...o};
   dbSet("__gh_user",GH.user);dbSet("__gh_repo",GH.repo);
   dbSet("__gh_token",GH.token);dbSet("__gh_branch",GH.branch);}
 
-function logLine(msg,cls){const l=$("#log");l.classList.add("show");
-  const s=document.createElement("div");if(cls)s.className=cls;s.textContent=msg;l.appendChild(s);l.scrollTop=l.scrollHeight;}
-function clearLog(){$("#log").innerHTML="";$("#log").classList.remove("show");}
+/* --- log collapsible --- */
+function logLine(msg,cls){
+  const l=$("#log");
+  const s=document.createElement("div");if(cls)s.className=cls;s.textContent=msg;l.appendChild(s);l.scrollTop=l.scrollHeight;
+  /* abre automaticamente se fechado */
+  if(!l.classList.contains("open")){
+    l.classList.add("open");
+    $("#btnLog").classList.add("log-open");
+  }
+}
+function clearLog(){$("#log").innerHTML="";}
 
-/* checagem local: arquivos referenciados pelo main.tex que faltam */
+/* checagem local */
 function preflight(){
   const missing=REFERENCED.filter(p=>!(p in files));
   if(missing.length){
-    logLine("⚠ Resolva os \\input ausentes antes de publicar:","warn");
-    missing.forEach(m=>logLine("   main.tex faz \\input{"+m.replace(/\.tex$/,"")+"} mas "+m+" não existe.","warn"));
+    logLine("⚠ Resolva os \\input ausentes antes de compilar:","warn");
+    missing.forEach(m=>logLine("   \\input{"+m.replace(/\.tex$/,"")+"} → "+m+" não existe.","warn"));
     logLine("");
   }
   return missing.length===0;
 }
 
-/* helper de API com auth */
+/* helper de API */
 async function gh(path,opts={}){
   const r=await fetch(GH_API+path,{...opts,headers:{
     "Authorization":"Bearer "+GH.token,
@@ -468,12 +574,8 @@ async function gh(path,opts={}){
   return r;
 }
 
-/* base64 UTF-8 seguro (para conteúdo de texto com acentos) */
-function b64encodeText(str){
-  return btoa(unescape(encodeURIComponent(str)));
-}
+function b64encodeText(str){return btoa(unescape(encodeURIComponent(str)));}
 
-/* cria um blob e devolve seu sha */
 async function makeBlob(contentB64){
   const r=await gh(`/repos/${GH.user}/${GH.repo}/git/blobs`,
     {method:"POST",body:JSON.stringify({content:contentB64,encoding:"base64"})});
@@ -481,10 +583,8 @@ async function makeBlob(contentB64){
   return (await r.json()).sha;
 }
 
-/* commita TODOS os arquivos de uma vez (1 árvore, 1 commit, 1 run) */
 async function commitAll(onProgress){
   const base=`/repos/${GH.user}/${GH.repo}/git`;
-  // 1) ref atual do branch
   let parentSha=null,baseTree=null;
   const refR=await gh(`${base}/ref/heads/${GH.branch}`);
   if(refR.ok){
@@ -494,7 +594,6 @@ async function commitAll(onProgress){
   }else if(refR.status!==404){
     throw new Error("ref: HTTP "+refR.status);
   }
-  // 2) blobs (texto + binário) e montagem da árvore
   const entries=[];
   const all=[...Object.keys(files).map(p=>[p,b64encodeText(files[p])]),
              ...Object.keys(binaries).map(p=>[p,binaries[p]])];
@@ -504,23 +603,19 @@ async function commitAll(onProgress){
     entries.push({path,mode:"100644",type:"blob",sha});
     done++;onProgress&&onProgress(done,all.length,path);
   }
-  // 3) árvore
   const treeBody={tree:entries};if(baseTree)treeBody.base_tree=baseTree;
   const treeR=await gh(`${base}/trees`,{method:"POST",body:JSON.stringify(treeBody)});
   if(!treeR.ok)throw new Error("tree: HTTP "+treeR.status);
   const treeSha=(await treeR.json()).sha;
-  // 4) commit
   const msg="Verso: atualiza o projeto ("+new Date().toLocaleString("pt-BR")+")";
   const commitBody={message:msg,tree:treeSha};
   if(parentSha)commitBody.parents=[parentSha];
   const commitR=await gh(`${base}/commits`,{method:"POST",body:JSON.stringify(commitBody)});
   if(!commitR.ok)throw new Error("commit: HTTP "+commitR.status);
   const newCommit=(await commitR.json()).sha;
-  // 5) atualiza (ou cria) o ref do branch
   let updR=await gh(`${base}/refs/heads/${GH.branch}`,
     {method:"PATCH",body:JSON.stringify({sha:newCommit,force:false})});
   if(updR.status===404||updR.status===422){
-    // branch ainda não existe: cria
     updR=await gh(`${base}/refs`,
       {method:"POST",body:JSON.stringify({ref:`refs/heads/${GH.branch}`,sha:newCommit})});
   }
@@ -528,23 +623,18 @@ async function commitAll(onProgress){
   return newCommit;
 }
 
-/* fluxo principal do botão Publicar & compilar */
+/* fluxo principal: compilar PDF */
 async function publish(){
   clearLog();
   if(!GH.user||!GH.repo||!GH.token){
     $("#previewPh").style.display="flex";$("#pdfframe").style.display="none";
-    logLine("Conecte seu repositório do GitHub primeiro.","err");
+    logLine("Conecte o GitHub primeiro (GitHub → Conectar GitHub).","err");
     logLine("");
-    logLine("Clique em \"Repo\" no topo e informe:","ok");
-    logLine("  • usuário/organização e nome do repositório;");
-    logLine("  • um token de acesso (fine-grained, escopo Contents + Actions).");
-    logLine("");
-    logLine("O token fica só neste dispositivo. Use um token restrito a este repositório.","warn");
-    toast("Conecte o repo em \"Repo\"");
+    logLine("Informe: usuário, repositório, branch e token (Contents + Actions).","warn");
+    toast("Conecte o GitHub primeiro");
     return;
   }
   if(!preflight()){toast("Há \\input ausentes");return;}
-
   $("#btnPublish").disabled=true;
   try{
     const total=Object.keys(files).length+Object.keys(binaries).length;
@@ -552,17 +642,16 @@ async function publish(){
     const commitSha=await commitAll((d,t,p)=>{
       if(d===1||d===t||d%5===0)logLine("  enviando… ("+d+"/"+t+")");
     });
-    logLine("Commit "+commitSha.slice(0,7)+" publicado. Disparando compilação…","ok");
+    logLine("Commit "+commitSha.slice(0,7)+" publicado. Aguardando compilação…","ok");
     await monitorRun(commitSha);
   }catch(e){
     logLine("Falha ao publicar: "+e.message,"err");
     if(/401|403|Bad credentials|Resource not accessible/i.test(e.message))
-      logLine("Verifique o token em \"Repo\" (precisa de Contents: read/write e Actions: read).","warn");
-    toast("Erro ao publicar");
+      logLine("Verifique o token (Contents: read/write e Actions: read).","warn");
+    toast("Erro ao compilar");
   }finally{$("#btnPublish").disabled=false;}
 }
 
-/* aguarda o run do Actions referente ao nosso commit terminar */
 async function monitorRun(commitSha){
   logLine("Aguardando o GitHub Actions iniciar…");
   let runId=null,runNum=null,tries=0;
@@ -570,17 +659,16 @@ async function monitorRun(commitSha){
     await sleep(3000);tries++;
     const r=await gh(`/repos/${GH.user}/${GH.repo}/actions/runs?branch=${GH.branch}&per_page=10`);
     if(r.ok){const j=await r.json();
-      // procura o run cujo head_sha bate com o commit que acabamos de criar
       const run=(j.workflow_runs||[]).find(w=>!commitSha||w.head_sha===commitSha)
-                || (j.workflow_runs||[])[0];
+                ||(j.workflow_runs||[])[0];
       if(run&&(!commitSha||run.head_sha===commitSha)){
         runId=run.id;runNum=run.run_number;
         logLine("Run #"+runNum+" detectado…");
       }
     }
   }
-  if(!runId){logLine("Não detectei o run. Veja em github.com/"+GH.user+"/"+GH.repo+"/actions","warn");
-    toast("Não achei o run do Actions");return;}
+  if(!runId){logLine("Run não detectado. Veja em github.com/"+GH.user+"/"+GH.repo+"/actions","warn");
+    toast("Run do Actions não encontrado");return;}
 
   let status="queued",conclusion=null;
   while(status!=="completed"){
@@ -592,32 +680,79 @@ async function monitorRun(commitSha){
   }
 
   if(conclusion!=="success"){
-    logLine("A compilação falhou ("+conclusion+").","err");
-    logLine("Abra o log em github.com/"+GH.user+"/"+GH.repo+"/actions/runs/"+runId,"warn");
-    notify("Compilação falhou","O Actions terminou com: "+conclusion);
+    logLine("Compilação falhou ("+conclusion+").","err");
+    logLine("Log: github.com/"+GH.user+"/"+GH.repo+"/actions/runs/"+runId,"warn");
+    notify("Compilação falhou","Actions terminou com: "+conclusion);
     toast("Compilação falhou");
     return;
   }
 
-  logLine("Compilação concluída. Buscando o PDF…","ok");
+  logLine("Compilação concluída. Carregando PDF…","ok");
   await sleep(2500);
   try{
     const blob=await fetchReleasePdf();
-    const url=URL.createObjectURL(blob);
-    $("#previewPh").style.display="none";const f=$("#pdfframe");f.style.display="block";f.src=url;
-    logLine("PDF pronto e carregado no preview. ✓","ok");
-    notify("PDF pronto ✓","A compilação terminou e o PDF apareceu no preview.");
+    showPdfBlob(blob);
+    logLine("PDF carregado no preview. ✓","ok");
+    notify("PDF pronto ✓","Compilação concluída.");
     toast("PDF pronto");
     if(window.innerWidth<=880)switchTab("preview");
   }catch(e){
-    logLine("Compilou, mas não baixei o PDF: "+e.message,"warn");
+    logLine("Compilou, mas não foi possível baixar o PDF: "+e.message,"warn");
     logLine("Confira a Release \""+GH_TAG+"\" no repositório.","warn");
-    notify("Compilação concluída","O PDF foi gerado; abra a Release pra ver.");
+    notify("Compilação concluída","Abra a Release para ver o PDF.");
   }
 }
 
-/* baixa o asset da Release via API autenticada (funciona em repo privado).
-   1) acha a Release pela tag  2) pega o id do asset  3) baixa com Accept octet-stream */
+function showPdfBlob(blob){
+  const url=URL.createObjectURL(blob);
+  $("#previewPh").style.display="none";
+  const f=$("#pdfframe");f.style.display="block";f.src=url;
+}
+
+/* ---------- 7b. carregar último PDF (sem recompilar) ---------- */
+/* Busca o PDF da última Action concluída com sucesso, independente de compilar agora */
+async function tryLoadLastPdf(){
+  if(!GH.user||!GH.repo||!GH.token) return;
+  try{
+    const blob=await fetchReleasePdf();
+    showPdfBlob(blob);
+    logLine("Último PDF carregado do GitHub. ✓","ok");
+  }catch(e){
+    /* silencioso se ainda não tem release */
+  }
+}
+
+async function loadLastPdf(){
+  if(!GH.user||!GH.repo||!GH.token){toast("Conecte o GitHub primeiro");return;}
+  clearLog();
+  logLine("Buscando o último PDF gerado…");
+  try{
+    /* tenta pela release tag primeiro */
+    try{
+      const blob=await fetchReleasePdf();
+      showPdfBlob(blob);
+      logLine("PDF da última compilação carregado. ✓","ok");
+      toast("PDF carregado");
+      return;
+    }catch(_){}
+    /* fallback: pega o último run bem-sucedido */
+    logLine("Release não encontrada. Buscando última Action bem-sucedida…","warn");
+    const r=await gh(`/repos/${GH.user}/${GH.repo}/actions/runs?branch=${GH.branch}&status=success&per_page=5`);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const runs=(await r.json()).workflow_runs||[];
+    if(!runs.length) throw new Error("nenhuma compilação bem-sucedida encontrada");
+    logLine("Última compilação: Run #"+runs[0].run_number+" ("+new Date(runs[0].updated_at).toLocaleString("pt-BR")+")","ok");
+    /* tenta baixar da release novamente após encontrar o run */
+    const blob=await fetchReleasePdf();
+    showPdfBlob(blob);
+    logLine("PDF carregado. ✓","ok");
+    toast("PDF carregado");
+  }catch(e){
+    logLine("Não foi possível carregar o PDF: "+e.message,"err");
+    toast("PDF não encontrado");
+  }
+}
+
 async function fetchReleasePdf(){
   const relR=await gh(`/repos/${GH.user}/${GH.repo}/releases/tags/${GH_TAG}`);
   if(!relR.ok)throw new Error("Release \""+GH_TAG+"\" não encontrada (HTTP "+relR.status+")");
@@ -626,8 +761,7 @@ async function fetchReleasePdf(){
   const asset=(rel.assets||[]).find(a=>a.name===wanted)
             ||(rel.assets||[]).find(a=>a.name.endsWith(".pdf"))
             ||(rel.assets||[])[0];
-  if(!asset)throw new Error("a Release não tem o PDF anexado ainda");
-  // o download autenticado do asset usa Accept: application/octet-stream
+  if(!asset)throw new Error("a Release não tem PDF ainda");
   const dl=await fetch(GH_API+`/repos/${GH.user}/${GH.repo}/releases/assets/${asset.id}`,{
     headers:{"Authorization":"Bearer "+GH.token,"Accept":"application/octet-stream"}});
   if(!dl.ok)throw new Error("download do PDF: HTTP "+dl.status);
@@ -636,7 +770,6 @@ async function fetchReleasePdf(){
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-/* notificação do navegador (avisa quando o PDF fica pronto) */
 function notify(title,body){
   if(!("Notification"in window))return;
   if(Notification.permission==="granted")new Notification(title,{body});
@@ -644,7 +777,7 @@ function notify(title,body){
     Notification.requestPermission().then(p=>{if(p==="granted")new Notification(title,{body});});
 }
 
-/* diálogo de conexão do repo (usuário, repo, token, branch) */
+/* ---------- 7c. Conectar GitHub ---------- */
 function configRepo(){
   const u=prompt("Usuário ou organização do GitHub:",GH.user);
   if(u===null)return;
@@ -656,13 +789,10 @@ function configRepo(){
   const next={user:u.trim(),repo:r.trim(),branch:(b.trim()||"main")};
   if(t&&t.trim())next.token=t.trim();
   setGhCfg(next);
-  toast("Repositório conectado: "+next.user+"/"+next.repo);
+  toast("GitHub conectado: "+next.user+"/"+next.repo);
 }
 
-
-/* ---------- 7b. varredura de \input/\include ---------- */
-/* lê o main.tex e descobre quais capítulos ele referencia,
-   marcando como "ausente" os que não existem no projeto. */
+/* ---------- 7d. varredura de \input ---------- */
 function rescanReferenced(){
   detectRoot();
   const root=rootTex&&files[rootTex];
@@ -672,8 +802,7 @@ function rescanReferenced(){
   const re=/\\(?:input|include)\{([^}]+)\}/g;let m;
   while((m=re.exec(root))){
     let p=m[1].trim();
-    if(!/\.\w+$/.test(p))p+=".tex";          // \input sem extensão -> .tex
-    // resolve relativo à pasta do arquivo-raiz, se não for caminho absoluto
+    if(!/\.\w+$/.test(p))p+=".tex";
     if(dir && !p.startsWith("/") && !(p in files))p=dir+p;
     refs.add(p.replace(/^\//,""));
   }
@@ -681,13 +810,12 @@ function rescanReferenced(){
   buildTree();
 }
 
-/* ---------- 7c. importar .zip ---------- */
+/* ---------- 7e. importar .zip ---------- */
 async function importZip(file){
   if(!window.JSZip){toast("Biblioteca de zip não carregou");return;}
   toast("Lendo "+file.name+"…");
   const zip=await JSZip.loadAsync(file);
   const newText={},newBin={};
-  // detecta prefixo de pasta comum (ex.: "projeto-main/")
   const paths=Object.keys(zip.files).filter(p=>!zip.files[p].dir);
   let prefix="";
   const top=paths[0]?.split("/")[0];
@@ -696,34 +824,27 @@ async function importZip(file){
     const entry=zip.files[raw];
     const path=prefix?raw.slice(prefix.length):raw;
     if(!path)continue;
-    if(isText(path)){
-      newText[path]=await entry.async("string");
-    }else{
-      newBin[path]=await entry.async("base64");
-    }
+    if(isText(path)){newText[path]=await entry.async("string");}
+    else{newBin[path]=await entry.async("base64");}
   }
   if(!Object.keys(newText).length){toast("Nenhum .tex encontrado no zip");return;}
   files=newText;binaries=newBin;
   await persistEverything();
   rescanReferenced();
-  // abre o arquivo-raiz detectado (\documentclass), senão o primeiro .tex
   openFile(rootTex||Object.keys(files).find(p=>p.endsWith(".tex"))||Object.keys(files)[0]);
   setDirty(false);
-  toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos carregados");
+  toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos");
 }
 
-/* ---------- 7c-bis. puxar o projeto do GitHub ---------- */
-/* lê a árvore completa do branch via Git Trees API (recursiva) e baixa
-   cada blob. Funciona em repo privado porque usa o token. */
+/* ---------- 7f. sincronizar do GitHub ---------- */
 async function pullFromGitHub(){
-  if(!GH.user||!GH.repo||!GH.token){toast("Conecte o repo em \"Repo\" primeiro");return;}
-  if(Object.keys(files).length>1 && dirty &&
-     !confirm("Isso substitui o conteúdo atual pelo que está no GitHub. Continuar?"))return;
+  if(!GH.user||!GH.repo||!GH.token){toast("Conecte o GitHub primeiro");return;}
+  if(Object.keys(files).length>1&&dirty&&
+     !confirm("Isso substitui o conteúdo local pelo do GitHub. Continuar?"))return;
   clearLog();
-  logLine("Lendo "+GH.user+"/"+GH.repo+" ("+GH.branch+")…");
+  logLine("Sincronizando "+GH.user+"/"+GH.repo+" ("+GH.branch+")…");
   $("#btnPull").disabled=true;
   try{
-    // ref -> commit -> tree recursiva
     const refR=await gh(`/repos/${GH.user}/${GH.repo}/git/ref/heads/${GH.branch}`);
     if(!refR.ok)throw new Error("branch \""+GH.branch+"\" não encontrado (HTTP "+refR.status+")");
     const commitSha=(await refR.json()).object.sha;
@@ -732,8 +853,6 @@ async function pullFromGitHub(){
     const tR=await gh(`/repos/${GH.user}/${GH.repo}/git/trees/${treeSha}?recursive=1`);
     if(!tR.ok)throw new Error("árvore: HTTP "+tR.status);
     const tree=(await tR.json()).tree.filter(n=>n.type==="blob");
-
-    // ignora o próprio app e o workflow ao carregar o projeto
     const skip=p=>p==="index.html"||p.startsWith(".github/")||p===".gitignore";
     const newText={},newBin={};let done=0;
     const blobs=tree.filter(n=>!skip(n.path));
@@ -745,22 +864,24 @@ async function pullFromGitHub(){
       else newBin[n.path]=b64;
       done++;if(done===1||done===blobs.length||done%5===0)logLine("  baixando… ("+done+"/"+blobs.length+")");
     }
-    if(!Object.keys(newText).length)throw new Error("nenhum arquivo de texto encontrado no repo");
+    if(!Object.keys(newText).length)throw new Error("nenhum arquivo de texto no repo");
     files=newText;binaries=newBin;
     await persistEverything();rescanReferenced();
     openFile(rootTex||Object.keys(files)[0]);
     setDirty(false);
-    logLine("Projeto carregado do GitHub. ✓","ok");
+    logLine("Sincronizado com o GitHub. ✓","ok");
     toast(Object.keys(files).length+" arquivos + "+Object.keys(binaries).length+" recursos");
+    /* após sincronizar, carrega o último PDF */
+    tryLoadLastPdf();
   }catch(e){
-    logLine("Falha ao puxar do GitHub: "+e.message,"err");
+    logLine("Falha ao sincronizar: "+e.message,"err");
     if(/401|403|Bad credentials|Resource not accessible/i.test(e.message))
-      logLine("Verifique o token em \"Repo\" (Contents: read).","warn");
-    toast("Erro ao puxar do GitHub");
+      logLine("Verifique o token (Contents: read).","warn");
+    toast("Erro ao sincronizar");
   }finally{$("#btnPull").disabled=false;}
 }
 
-/* ---------- 7d. exportar .zip ---------- */
+/* ---------- 7g. exportar .zip ---------- */
 async function exportZip(){
   if(!window.JSZip){toast("Biblioteca de zip não carregou");return;}
   const zip=new JSZip();
@@ -772,9 +893,10 @@ async function exportZip(){
   toast("Projeto exportado (.zip)");
 }
 
-
+/* ---------- 8. UI helpers ---------- */
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");
   clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),1900);}
+
 function switchTab(name){
   document.querySelectorAll(".tabbar button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
   const c=$("#cols");c.classList.toggle("show-files",name==="files");
@@ -783,28 +905,113 @@ function switchTab(name){
 }
 document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 
-/* menu suspenso de ações (mobile) */
-const actionsEl=$("#actions");
-function closeMenu(){actionsEl.classList.remove("open");}
-$("#btnMenu").onclick=e=>{e.stopPropagation();actionsEl.classList.toggle("open");};
-document.addEventListener("click",e=>{
-  if(actionsEl.classList.contains("open")&&!actionsEl.contains(e.target)&&e.target.id!=="btnMenu")closeMenu();
-});
+/* --- dropdown logic --- */
+function setupDropdown(triggerId, menuId, wrapId){
+  const trigger=$("#"+triggerId), menu=$("#"+menuId);
+  trigger.onclick=e=>{e.stopPropagation();menu.classList.toggle("open");};
+  document.addEventListener("click",e=>{
+    if(menu.classList.contains("open")&&!menu.contains(e.target)&&e.target!==trigger)
+      menu.classList.remove("open");
+  });
+}
+setupDropdown("btnGhDrop","ghMenu","ghWrap");
+setupDropdown("btnCompileDrop","compileMenu","compileWrap");
 
-$("#btnSave").onclick=()=>{closeMenu();saveAll();};
-$("#btnPublish").onclick=publish;
-$("#btnExport").onclick=()=>{closeMenu();exportZip();};
-$("#btnImport").onclick=()=>{closeMenu();$("#zipInput").click();};
-$("#btnRepo").onclick=()=>{closeMenu();configRepo();};
-$("#btnPull").onclick=()=>{closeMenu();pullFromGitHub();};
+function closeAllDropdowns(){
+  document.querySelectorAll(".dd-menu.open").forEach(m=>m.classList.remove("open"));
+}
+
+/* --- log toggle --- */
+const logEl=$("#log"), logBtn=$("#btnLog");
+logBtn.onclick=()=>{
+  const open=logEl.classList.toggle("open");
+  logBtn.classList.toggle("log-open",open);
+};
+
+/* --- event bindings --- */
+$("#btnSave").onclick=()=>saveAll();
+$("#btnPublish").onclick=()=>{closeAllDropdowns();publish();};
+$("#btnLoadPdf").onclick=()=>{closeAllDropdowns();loadLastPdf();};
+$("#btnExport").onclick=()=>{closeAllDropdowns();exportZip();};
+$("#btnImport").onclick=()=>{closeAllDropdowns();$("#zipInput").click();};
+$("#btnRepo").onclick=()=>{closeAllDropdowns();configRepo();};
+$("#btnPull").onclick=()=>{closeAllDropdowns();pullFromGitHub();};
 $("#zipInput").onchange=e=>{const f=e.target.files[0];if(f)importZip(f).catch(err=>{console.error(err);toast("Erro ao ler zip");});e.target.value="";};
+
 document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="s"){e.preventDefault();saveAll();}
   if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();publish();}
 });
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
 
-/* ---------- 10. service worker (offline shell) ---------- */
+/* ---------- 9. resize handles ---------- */
+(function(){
+  const cols=$("#cols");
+
+  function getWidths(){
+    const style=getComputedStyle(cols);
+    const parts=style.gridTemplateColumns.split(" ");
+    /* parses "220px Xpx Ypx" */
+    return parts.map(s=>parseFloat(s));
+  }
+
+  function positionHandles(){
+    const style=getComputedStyle(cols);
+    const parts=style.gridTemplateColumns.split(" ");
+    const w0=parseFloat(parts[0]);
+    const w1=parseFloat(parts[1]);
+    const rh1=$("#rh1"), rh2=$("#rh2");
+    rh1.style.left=(w0-2)+"px";
+    rh2.style.left=(w0+w1-2)+"px";
+  }
+
+  function startResize(e,handle){
+    e.preventDefault();
+    handle.classList.add("dragging");
+    const totalW=cols.offsetWidth;
+    const startX=e.clientX;
+    const style=getComputedStyle(cols);
+    const parts=style.gridTemplateColumns.split(" ");
+    const w0=parseFloat(parts[0]);
+    const w1=parseFloat(parts[1]);
+    const w2=parseFloat(parts[2]);
+
+    function onMove(ev){
+      const dx=ev.clientX-startX;
+      const MIN=120;
+      if(handle.id==="rh1"){
+        const newW0=Math.max(MIN,w0+dx);
+        const newW1=Math.max(MIN,w1-dx);
+        if(newW0+newW1+MIN<=totalW){
+          cols.style.gridTemplateColumns=newW0+"px "+newW1+"px 1fr";
+        }
+      } else {
+        const newW1=Math.max(MIN,w1+dx);
+        if(w0+newW1+MIN<=totalW){
+          cols.style.gridTemplateColumns=w0+"px "+newW1+"px 1fr";
+        }
+      }
+      positionHandles();
+      cm.refresh();
+    }
+    function onUp(){
+      handle.classList.remove("dragging");
+      document.removeEventListener("mousemove",onMove);
+      document.removeEventListener("mouseup",onUp);
+    }
+    document.addEventListener("mousemove",onMove);
+    document.addEventListener("mouseup",onUp);
+  }
+
+  $("#rh1").addEventListener("mousedown",e=>startResize(e,$("#rh1")));
+  $("#rh2").addEventListener("mousedown",e=>startResize(e,$("#rh2")));
+
+  /* initial handle positions after layout paint */
+  requestAnimationFrame(positionHandles);
+  window.addEventListener("resize",positionHandles);
+})();
+
+/* ---------- 10. service worker ---------- */
 if("serviceWorker"in navigator){
   const sw=`self.addEventListener("install",e=>self.skipWaiting());
   self.addEventListener("activate",e=>e.waitUntil(self.clients.claim()));

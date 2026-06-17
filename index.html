@@ -80,39 +80,40 @@
     min-height:0;height:100%;position:relative;overflow:hidden;
     background:var(--paper);
   }
-  /* colunas colapsadas viram faixa fina (1rem) */
-  .cols.files-collapsed{grid-template-columns:1rem var(--w2,1fr) 1fr}
-  .cols.preview-collapsed{grid-template-columns:var(--w1,220px) 1fr 1rem}
-  .cols.files-collapsed.preview-collapsed{grid-template-columns:1rem 1fr 1rem}
   .pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
-  .pane.files{background:var(--tex-deep);border-right:1px solid #06403a}
+  .pane.files{background:var(--tex-deep);border-right:1px solid #06403a;flex-direction:row}
+  .pane.preview{flex-direction:row}
   .pane.editor{border-right:1px solid var(--line)}
+  /* conteúdo da coluna (tudo menos a barra de borda) */
+  .pane-inner{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
 
-  /* faixa fina que aparece quando a coluna está colapsada */
-  .collapsed-strip{
-    display:none;flex-direction:column;align-items:center;
-    background:var(--tex-deep);height:100%;width:100%;
-    padding:8px 0;gap:8px;position:relative;
+  /* barra fina sempre visível na borda (1rem): colapsa/expande */
+  .edge-bar{
+    width:1rem;flex-shrink:0;background:var(--tex-deep);
+    border-left:1px solid #06403a;border-right:1px solid #06403a;
+    display:flex;flex-direction:column;align-items:center;
+    cursor:pointer;position:relative;user-select:none;
   }
-  .collapsed-strip button{
-    background:none;border:0;color:#cfe4dd;cursor:pointer;padding:0;
-    display:flex;align-items:center;justify-content:center;opacity:.7;transition:opacity .15s;
-  }
-  .collapsed-strip button:hover{opacity:1}
-  .collapsed-strip svg{width:13px;height:13px}
-  /* "handle" de 3 pontos verticais, centralizado */
-  .collapsed-strip .dots{
+  .edge-bar:hover{background:#11423b}
+  .edge-bar .edge-arrow{width:13px;height:13px;color:#cfe4dd;opacity:.7;margin-top:10px}
+  .edge-bar:hover .edge-arrow{opacity:1}
+  .edge-bar .dots{
     position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
     display:flex;flex-direction:column;gap:3px;
   }
-  .collapsed-strip .dots i{width:3px;height:3px;border-radius:50%;background:#5d7771;display:block}
-  /* quando colapsada: some o conteúdo normal, aparece a faixa */
+  .edge-bar .dots i{width:3px;height:3px;border-radius:50%;background:#5d7771;display:block}
+
+  /* COLAPSADA: esconde o conteúdo; sobra só a barra de 1rem */
+  .cols.files-collapsed{grid-template-columns:1rem var(--w2,1fr) 1fr}
+  .cols.preview-collapsed{grid-template-columns:var(--w1,220px) 1fr 1rem}
+  .cols.files-collapsed.preview-collapsed{grid-template-columns:1rem 1fr 1rem}
+  .cols.files-collapsed .pane.files .pane-inner{display:none}
+  .cols.preview-collapsed .pane.preview .pane-inner{display:none}
   .cols.files-collapsed #rh1{display:none}
   .cols.preview-collapsed #rh2{display:none}
-  .cols.files-collapsed .pane.files > :not(.collapsed-strip){display:none}
-  .cols.files-collapsed .pane.files .collapsed-strip{display:flex}
-  .cols.preview-collapsed .pane.preview > :not(.collapsed-strip){display:none}
-  .cols.preview-collapsed .pane.preview .collapsed-strip{display:flex}
+  /* seta aponta pra fora quando expandida (fechar) e pra dentro quando colapsada (abrir) */
+  .cols.files-collapsed #filesEdge .edge-arrow{transform:scaleX(-1)}
+  .cols.preview-collapsed #previewEdge .edge-arrow{transform:scaleX(-1)}
 
   /* ---------- resize handles ---------- */
   .resize-handle{
@@ -348,6 +349,7 @@
 
     <!-- ===== COLUNA 1: Arquivos ===== -->
     <aside class="pane files">
+      <div class="pane-inner">
       <div class="files-header">
         <div class="files-brand">
           <span class="mark"><b>V</b>erso</span>
@@ -392,16 +394,13 @@
               <span class="ic-badge"><i data-lucide="arrow-down-to-line"></i></span>
             </span>
           </button>
-          <button class="ibtn" id="btnCollapseFiles" title="Recolher arquivos">
-            <i data-lucide="panel-left-close"></i>
-          </button>
-
         </div>
       </div>
       <div class="tree" id="tree"></div>
-      <!-- faixa fina quando recolhida -->
-      <div class="collapsed-strip" id="filesStrip">
-        <button id="btnExpandFiles" title="Expandir arquivos"><i data-lucide="chevron-right"></i></button>
+      </div>
+      <!-- barra fina sempre visível na borda: colapsa/expande -->
+      <div class="edge-bar" id="filesEdge" title="Recolher/expandir arquivos">
+        <i data-lucide="chevron-left" class="edge-arrow"></i>
         <span class="dots"><i></i><i></i><i></i></span>
       </div>
     </aside>
@@ -423,6 +422,12 @@
 
     <!-- ===== COLUNA 3: PDF Preview ===== -->
     <section class="pane preview">
+      <!-- barra fina sempre visível na borda esquerda: colapsa/expande -->
+      <div class="edge-bar" id="previewEdge" title="Recolher/expandir PDF">
+        <i data-lucide="chevron-right" class="edge-arrow"></i>
+        <span class="dots"><i></i><i></i><i></i></span>
+      </div>
+      <div class="pane-inner">
       <div class="preview-head">
         <!-- ESQUERDA: compilar (tag) + console lado a lado -->
         <button class="pdf-tag" id="btnCompile" title="Compilar PDF (Ctrl+Enter)">▶ PDF</button>
@@ -436,9 +441,6 @@
             <i data-lucide="file-text"></i>
             <span class="ic-badge"><i data-lucide="download"></i></span>
           </span>
-        </button>
-        <button class="ibtn" id="btnCollapsePreview" title="Recolher PDF">
-          <i data-lucide="panel-right-close"></i>
         </button>
       </div>
       <div class="ph" id="previewPh">
@@ -458,10 +460,6 @@
         </a>
       </div>
       <div id="log"></div>
-      <!-- faixa fina quando recolhida -->
-      <div class="collapsed-strip" id="previewStrip">
-        <button id="btnExpandPreview" title="Expandir PDF"><i data-lucide="chevron-left"></i></button>
-        <span class="dots"><i></i><i></i><i></i></span>
       </div>
     </section>
   </div>
@@ -1223,17 +1221,16 @@ logBtn.onclick=()=>{
 $("#btnCompile").onclick=()=>{closeAllDropdowns();compileOnly();};
 $("#btnDownload").onclick=()=>{downloadPdf();};
 
-/* colapsar/expandir colunas laterais (desktop) */
-function setCollapsed(side,on){
+/* colapsar/expandir colunas laterais (desktop) — barra de borda alterna */
+function toggleCollapse(side){
   const cols=$("#cols");
+  const on=!cols.classList.contains(side+"-collapsed");
   cols.classList.toggle(side+"-collapsed",on);
   try{metaSet("collapse_"+side,on?"1":"");}catch(_){}
   setTimeout(()=>{try{cm.refresh();}catch(_){}},210);
 }
-$("#btnCollapseFiles").onclick=()=>setCollapsed("files",true);
-$("#btnExpandFiles").onclick=()=>setCollapsed("files",false);
-$("#btnCollapsePreview").onclick=()=>setCollapsed("preview",true);
-$("#btnExpandPreview").onclick=()=>setCollapsed("preview",false);
+$("#filesEdge").onclick=()=>toggleCollapse("files");
+$("#previewEdge").onclick=()=>toggleCollapse("preview");
 $("#btnPush").onclick=()=>{closeAllDropdowns();pushToGitHub();};
 $("#btnShare").onclick=()=>{closeAllDropdowns();shareProject();};
 $("#btnLogin").onclick=()=>{closeAllDropdowns();toggleLogin();};

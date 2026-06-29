@@ -624,22 +624,23 @@ function buildTree(){
     tree.appendChild(el);
   };
 
-  // injeta o PDF como entrada virtual na raiz para entrar na ordenação alfabética
-  if(lastPdfBlob){
-    const pdf=pdfName();
-    (groups[ROOT]||(groups[ROOT]=[])).push("\x00pdf\x00"+pdf);
-  }
   const order=Object.keys(groups).sort((a,b)=>{
     if(a===ROOT)return -1;if(b===ROOT)return 1;return a.localeCompare(b);});
   for(const folder of order){
     const g=document.createElement("div");g.className="grp";
     g.textContent=folder===ROOT?"raiz":folder+"/";
     tree.appendChild(g);
-    groups[folder].sort().forEach(p=>{
-      if(p.startsWith("\x00pdf\x00")){
+    const items=groups[folder].slice().sort();
+    if(folder===ROOT&&lastPdfBlob){
+      const pdf=pdfName();
+      const idx=items.findIndex(p=>p.localeCompare(pdf)>0);
+      items.splice(idx===-1?items.length:idx,0,null);
+    }
+    items.forEach(p=>{
+      if(p===null){
         const pdfEl=document.createElement("div");
         pdfEl.className="fitem binary";
-        pdfEl.innerHTML=`<span class="ic">📄</span><span>${p.slice(5)}</span><small>PDF</small>`;
+        pdfEl.innerHTML=`<span class="ic">📄</span><span>${pdfName()}</span><small>PDF</small>`;
         pdfEl.onclick=()=>showPdfBlob(lastPdfBlob);
         tree.appendChild(pdfEl);
       } else {
